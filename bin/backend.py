@@ -4,8 +4,6 @@
 import sys
 import time
 
-from h5py.h5i import FILE
-
 from bin import config, comm, simulate
 
 
