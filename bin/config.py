@@ -1,8 +1,7 @@
 
-#
-# Set MUD_LIB to the directory which contains the mud data. Was formerly
-# defined in config.h !
-MUD_LIB = "/Users/dave/MyFiles/MyWorkspace/mud/LPMud.py/lib"
+
+# Set MUD_LIB to the directory which contains the mud data.
+MUD_LIB = "lib/"
 
 
 #
@@ -50,13 +49,12 @@ MUD_LIB = "/Users/dave/MyFiles/MyWorkspace/mud/LPMud.py/lib"
 #  
 #define TIME_TO_SWAP    900
 
-#
+
 #  How many seconds until an object is reset again.
 #  Set this value high if big system, otherwise low.
 #  No castles:     1800    (30 minutes)
 #  >100 castles:10000    (almost 3 hours).
-#  
-#define TIME_TO_RESET    3600    #  one hour#  
+TIME_TO_RESET = 1800 # 30 minutes #  
 
 #
 #  How to extract an unsigned char from a char *.
@@ -106,16 +104,12 @@ MUD_LIB = "/Users/dave/MyFiles/MyWorkspace/mud/LPMud.py/lib"
 #  
 #define LIVING_HASH_SIZE    100
 
-#
 #  Define what port number the game is to use.
-#  
 PORTNO = 3000
 
-#
 #  This is the file which contains names of objects to be
 #  loaded initially. Do not normally change this.
-#  
-#define INIT_FILE        "room/init_file"
+INIT_FILE = "room/init_file"
 
 #
 #  This is the subdirectory where all wizards objects are defined.

@@ -8,8 +8,14 @@
  2 or higher: This is an interactive player, that has not given any commands
         for a number of reset periods.
 '''
+import importlib
+import random
 
-class Mud_Object():
+from bin import config, backend, interpret, simulate, otable
+from bin.efun import Efun
+
+
+class Mud_Object(Efun):
     O_HEART_BEAT = False        # Does it have an heart beat ? #
     O_IS_WIZARD = False         # Is it a wizard player.c ? #
     O_ENABLE_COMMANDS = False   # Can it execute commands ? #
@@ -34,64 +40,11 @@ class Mud_Object():
     living_name = None          # Name of living object if in hash #
 #     struct program *prog;
 #     struct svalue variables[1];        /* All variables to this program #
-
-
-
-# extern struct object *load_object PROT((char *, int)),
-#         *find_object PROT((char *));
-# extern struct object *get_empty_object(), *find_object PROT((char *)),
-#     *find_object2 PROT((char *));
-# extern struct object *current_object, *command_giver;
-# 
-# extern struct object *obj_list;
-# extern struct object *obj_list_destruct;
-# 
+ 
 # struct value;
-# void remove_destructed_objects(), save_object PROT((struct object *, char *)),
-#     move_object PROT((struct object *, struct object *)),
-#     tell_object PROT((struct object *, char *)),
-#     tell_npc PROT((struct object *, char *)),
-#     add_ref PROT((struct object *, char *)),
-#     free_object PROT((struct object *, char *)),
-#     reference_prog PROT((struct program *, char *));
-# 
-# int restore_object PROT((struct object *, char *));
-# 
-# 
-# #include <sys/types.h>
-# #include <sys/stat.h>
-# #include <stdio.h>
-# #include <string.h>
-# #ifdef __STDC__
-# #include <memory.h>
-# #endif
-# 
-# #include "lint.h"
-# #include "interpret.h"
-# #include "object.h"
-# #include "sent.h"
-# #include "config.h"
-# #include "wiz_list.h"
-# #include "exec.h"
-# 
-# extern int d_flag;
-# extern int total_num_prog_blocks, total_prog_block_size;
-# 
-# #ifdef USE_TIOCGETP        /* Check if BSD */
-# extern int getpid();
-# #else
-# extern pid_t getpid();
-# #endif
-# 
-# extern char *xalloc PROT((int)), *string_copy PROT((char *));
-# 
-# void remove_swap_file PROT((struct object *));
-# 
-# extern int atoi();
-# 
-# struct object *previous_ob;
-# extern struct svalue const0;
-# 
+ 
+previous_ob = None
+ 
 # int tot_alloc_object, tot_alloc_object_size;
 # 
 # /*
@@ -594,59 +547,31 @@ class Mud_Object():
 #     }
 #     tell_npc(ob, str);
 # }
-# 
-# void free_object(ob, from)
-#     struct object *ob;
-#     char *from;
-# {
+
+def free_object(ob, fro):
+
 #     struct sentence *s;
-# 
-#     ob.ref--;
-#     if (d_flag > 1)
-#     printf("Subtr ref to ob %s: %d (%s)\n", ob.name,
-#               ob.ref, from);
-#     if (ob.ref > 0)
-#     return;
-#     if (d_flag)
-#     printf("free_object: %s.\n", ob.name);
-#     if (!(ob.flags & O_DESTRUCTED)) {
-#     /* This is fatal, and should never happen. */
-#     fatal("FATAL: Object 0x%x %s ref count 0, but not destructed (from %s).\n",
-#         ob, ob.name, from);
-#     }
-#     if (ob.interactive)
-#     fatal("Tried to free an interactive object.\n");
-#     /*
-#      * If the program is freed, then we can also free the variable
-#      * declarations.
-#      */
-#     if (ob.prog) {
-#     tot_alloc_object_size -=
-#         (ob.prog.num_variables - 1) * sizeof (struct svalue) +
-#         sizeof (struct object);
-#     free_prog(ob.prog, 1);
-#     ob.prog = 0;
-#     }
-#     if (ob.swap_num != -1)
-#     remove_swap_file(ob);
-#     for (s = ob.sent; s;) {
-#     struct sentence *next;
-#     next = s.next;
-#     free_sentence(s);
-#     s = next;
-#     }
-#     if (ob.name) {
-#     if (d_flag > 1)
-#         debug_message("Free object %s\n", ob.name);
-#     if (lookup_object_hash(ob.name) == ob)
-#         fatal("Freeing object %s but name still in name table", ob.name);
-#     free(ob.name);
-#     ob.name = 0;
-#     }
-#     tot_alloc_object--;
-#     free((char *)ob);
-# }
-# 
+     
+    if not ob.O_DESTRUCTED:
+        # This is fatal, and should never happen. #
+        raise Exception("FATAL: Object 0x%x %s ref count 0, but not destructed (from %s)." % ob, ob.name, fro)
+    
+    if ob.interactive:
+        raise Exception("Tried to free an interactive object.\n")
+    
+    # If the program is freed, then we can also free the variable
+    # declarations.
+    
+    for s in ob.sentences:
+        ob.sentences.remove(s)        
+                
+    if ob.name: 
+        if otable.lookup_object_hash(ob.name) == ob:
+            raise Exception("Freeing object %s but name still in name table" % ob.name)        
+        ob.name = None
+    
+
+
 # void add_ref(ob, from)
 #     struct object *ob;
 #     char *from;
@@ -662,33 +587,22 @@ class Mud_Object():
 # 'struct object' already has space for one variable. So, if no variables
 # are needed, we allocate a space that is smaller than 'struct object'. This
 # unused (last) part must of course (and will not) be referenced.
-def get_empty_object(name):
-    raise NotImplementedError
-# struct object *get_empty_object(num_var)
-#     int num_var;
-# {
-#     static struct object NULL_object;
-#     struct object *ob;
-#     int size = sizeof (struct object) +
-#     (num_var - !!num_var) * sizeof (struct svalue);
-#     int i;
-# 
-#     tot_alloc_object++;
-#     tot_alloc_object_size += size;
-#     ob = (struct object *)xalloc(size);
-#     /* marion
-#      * Don't initialize via memset, this is incorrect. E.g. the bull machines
-#      * have a (char *)0 which is not zero. We have structure assignment, so
-#      * use it.
-#      */
-#     *ob = NULL_object;
-#     ob.ref = 1;
-#     ob.swap_num = -1;
-#     for (i=0; i<num_var; i++)
-#     ob.variables[i] = const0;
-#     return ob;
-# }
-# 
+def get_empty_object(file_name):
+
+    file_name = config.MUD_LIB + file_name
+    
+    # replace all the separators with dots #
+    file_name = file_name.replace("/", ".")
+      
+    module = importlib.import_module(file_name)
+    importlib.reload(module)
+    class_name = file_name[file_name.rfind(".")+1:]
+    class_name = class_name[0:1].capitalize() + class_name[1:]
+    
+    class_ = getattr(module, class_name)
+    return class_()
+
+ 
 # void remove_all_objects() {
 #     struct object *ob;
 #     struct svalue v;
@@ -895,31 +809,13 @@ def get_empty_object(name):
 #     free((char *)progp);
 # }
 
-def reset_object(ob, arg):
-    raise NotImplementedError
-# void reset_object(ob, arg)
-#     struct object *ob;
-#     int arg;
-# {
-#     extern int current_time;
-# 
-#     /* Be sure to update time first ! */
-#     ob.next_reset = current_time + TIME_TO_RESET/2 +
-#     random_number(TIME_TO_RESET/2);
-# #ifdef COMPAT_MODE
-#     push_number(arg);
-#     (void)apply("reset", ob, 1);
-# #else
-#     if (arg == 0) {
-#     apply("__INIT", ob, 0);
-#     apply("create", ob, 0);
-#     } else {
-#     apply("reset", ob, 0);
-#     }
-# #endif    
-#     ob.flags |= O_RESET_STATE;
-# }
-# 
+def reset_object(ob, arg):     
+    # Be sure to update time first ! #
+    ob.next_reset = backend.current_time + config.TIME_TO_RESET//2 +  random.randrange(config.TIME_TO_RESET//2);   
+    interpret.apply("reset", ob, arg);
+    ob.O_RESET_STATE = True
+
+
 # /*
 #  * If there is a shadow for this object, then the message should be
 #  * sent to it. But only if catch_tell() is defined. Beware that one of the

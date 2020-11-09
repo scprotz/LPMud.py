@@ -1,4 +1,3 @@
-from multiprocessing.reduction import ACKNOWLEDGE
 import sys
 
 from bin import main
@@ -135,14 +134,13 @@ def load_wiz_file():
                 print("Bad WIZLIST file.", file=sys.stderr)
             break;
         
-        name = p[0]
-        score = int(p[1])
+            name = p[0]
+            score = int(p[1])
         
-        if score > 0:
-            add_name(name)
-            add_score(name, score)
-    
-        f.close()
+            if score > 0:
+                add_name(name)
+                add_score(name, score)        
+            f.close()
     except FileNotFoundError as fnfe:
         print("WIZLIST file not found", file=sys.stderr)
         print(fnfe)

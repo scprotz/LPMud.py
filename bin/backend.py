@@ -1,6 +1,14 @@
 # 
 # The 'current_time' is updated at every heart beat.
 # 
+import sys
+import time
+
+from h5py.h5i import FILE
+
+from bin import config, comm, simulate
+
+
 current_time = 0
  
 # static void cycle_hb_list PROT((void));
@@ -451,66 +459,44 @@ def backend():
 # start up.
 
 def load_first_objects():
-    raise NotImplementedError
-# void load_first_objects() { #  Old version used when o_flag true /JnA # 
-#     FILE *f;
-#     char buff[1000];
-#     char *p;
-#     extern int e_flag;
-# #ifndef MSDOS
-#     struct tms tms1, tms2;
-# #else
-#     long timer;
-# #endif
-# 
-#     if (e_flag)
-#     return;
-#     (void)printf("Loading init file %s\n", INIT_FILE);
-#     f = fopen(INIT_FILE, "r");
-#     if (f == 0)
-#     return;
-#     if (setjmp(error_recovery_context)) {
-#     clear_state();
-#     add_message("Anomaly in the fabric of world space.\n");
-#     }
-#     error_recovery_context_exists = 1;
-# #ifndef MSDOS
-#     times(&tms1);
-# #else
-#     timer = 0L;
-#     (void) milliseconds(&timer);
-# #endif
-#     while(1) {
-#     if (fgets(buff, sizeof buff, f) == NULL)
-#         break;
-#     if (buff[0] == '#')
-#         continue;
-#     p = strchr(buff, '\n');
-#     if (p != 0)
-#         *p = 0;
-#     if (buff[0] == '\0')
-#         continue;
-#     (void)printf("Preloading: %s", buff);
-#     fflush(stdout);
-#     eval_cost = 0;
-#     (void)find_object(buff);
-# #ifdef MALLOC_malloc
-#     resort_free_list();
-# #endif
-# #ifndef MSDOS
-#     times(&tms2);
-#     (void)printf(" %.2f\n", (tms2.tms_utime - tms1.tms_utime +
-#                  tms2.tms_stime - tms1.tms_stime) / 60.0);
-#     tms1 = tms2;
-# #else
-#     (void)printf(" %.2f\n", milliseconds(&timer)/1000.0);
-# #endif
-#     fflush(stdout);
-#     }
-#     error_recovery_context_exists = 0;
-#     fclose(f);
-# }
-# 
+ 
+    print("Loading init file %s" % config.INIT_FILE)
+    try:
+        f = open(config.INIT_FILE, "r")
+        
+        tms1 = time.time()
+        
+        for buff in f:
+            
+            
+            # comment line #
+            if buff[0] == '#':            
+                continue;
+            
+            # clean up extra whitespace #
+            buff = buff.strip()
+            
+            # empty line #
+            if len(buff) == 0:
+                continue
+            
+            print("Preloading: %s" % buff, end="")
+            sys.stdout.flush()            
+            simulate.find_object(buff)
+
+            tms2 = time.time()
+            
+            print(" %.2f" % ((tms2 - tms1) / 60.0))
+            tms1 = tms2
+        
+            sys.stdout.flush()
+        
+        
+        f.close()
+    except FileNotFoundError:
+        comm.add_message("Anomaly in the fabric of world space.\n")
+        print("Error loading file %s" % config.INIT_FILE)
+ 
 # # 
 #  * New version used when not in -o mode. The epilog() in master.c is
 #  * supposed to return an array of files (castles in 2.4.5) to load. The array

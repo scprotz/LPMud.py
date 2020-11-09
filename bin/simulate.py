@@ -1,9 +1,10 @@
 # char *inherit_file;
 # char *last_verb;
 # 
+import os
 import sys
 
-from bin import mud_object, otable, interpret, simulate
+from bin import mud_object, otable, interpret, simulate, wiz_list
 
 
 obj_list = []
@@ -40,113 +41,30 @@ current_interactive = None # The user who caused this execution #
 
 # Give the correct uid and euid to a created object.
 def give_uid_to_object(ob):
-    raise NotImplementedError
-# int give_uid_to_object(ob)
-#     struct object *ob;
-# {
-# //    struct object *tmp_ob;
-# #ifdef COMPAT_MODE
-#     char wiz_name[100];
-# #else
-#     struct svalue *ret;
-#     char *creator_name;
-# #endif
-# 
-# //    if (master_ob == 0)
-# //    tmp_ob = ob;
-# //    else {
-#     if(master_ob != 0){
-#     assert_master_ob_loaded();
-# //    tmp_ob = master_ob;
-#     }
-#     
-# #ifdef COMPAT_MODE
-#     # Is this object wizard defined ? #
-#     if (sscanf(ob.name, "players/%s", wiz_name) == 1) {
-#     char *np;
-#     np = strchr(wiz_name, '/');
-#     if (np)
-#         *np = '\0';
-#     ob.user = add_name(wiz_name);
-#     } else {
-#     ob.user = 0;
-#     }
-#     ob.eff_user = ob.user;    # Initial state #
-#     return 1;
-# #else
-# 
-#     if (!current_object || !current_object.user) {
-#     #
-#      * Only for the master and void object. Note that
-#      * back_bone_uid is not defined when master.c is being loaded.
-#      #
-#     ob.user = add_name("NONAME");
-#     ob.eff_user = 0;
-#     return 1;
-#     }
-# 
-#     #
-#      * Ask master.c who the creator of this object is.
-#      #
-#     push_string(ob.name, STRING_CONSTANT);
-#     ret = apply("creator_file", tmp_ob, 1);
-#     if (!ret)
-#     error("No function 'creator_file' in master.c!\n");
-#     if (ret.type != T_STRING) {
-#     struct svalue arg;
-#     # This can be the case for objects in /ftp and /open. #
-#     arg.type = T_OBJECT;
-#     arg.u.ob = ob;
-#     destruct_object(&arg);
-#     error("Illegal object to load.\n");
-#     }
-#     creator_name = ret.u.string;
-#     #
-#      * Now we are sure that we have a creator name.
-#      * Do not call apply() again, because creator_name will be lost !
-#      #
-#     if (strcmp(current_object.user.name, creator_name) == 0) {
-#     # 
-#      * The loaded object has the same uid as the loader.
-#      #
-#     ob.user = current_object.eff_user;
-#     ob.eff_user = current_object.eff_user;
-#     return 1;
-#     }
-# 
-#     if (strcmp(back_bone_uid.name, creator_name) == 0) {
-#     #
-#      * The object is loaded from backbone. This is trusted, so we
-#      * let it inherit the value of eff_user.
-#      #
-#     ob.user = current_object.eff_user;
-#     ob.eff_user = current_object.eff_user;
-#     return 1;
-#     }
-# 
-#     #
-#      * The object is not loaded from backbone, nor from 
-#      * from the loading objects path. That should be an object
-#      * defined by another wizard. It can't be trusted, so we give it the
-#      * same uid as the creator. Also give it eff_user 0, which means that
-#      * player 'a' can't use objects from player 'b' to load new objects nor
-#      * modify files owned by player 'b'.
-#      *
-#      * If this effect is wanted, player 'b' must let his object do
-#      * 'seteuid()' to himself. That is the case for most rooms.
-#      #
-#     ob.user = add_name(creator_name);
-#     ob.eff_user = (struct wiz_list *)0;
-#     return 1;
-# #endif # COMPAT_MODE #
-# }
+ 
+    if master_ob != None:    
+        interpret.assert_master_ob_loaded();
+         
+    # Is this object wizard defined ? #
+    index = ob.name.find("players/")
+    
+    if(index != -1):
+        wiz_name = ob.name[index + 8:]
+    
+        # if it has another "/" in it, there is a wiz_name
+        np = None
+        if wiz_name.find("/") != -1:
+            np = wiz_name[:wiz_name.find("/")]        
+        ob.user = wiz_list.add_name(np)    
+    else:    
+        ob.user = None    
+    ob.eff_user = ob.user    # Initial state #
+    return True
 
 
 # Load an object definition from file. If the object wants to inherit
 # from an object that is not loaded, discard all, load the inherited object,
 # and reload again.
-#
-# In mudlib3.0 when loading inherited objects, their reset() is not called.
 #
 # Save the command_giver, because reset() in the new object might change
 # it.
@@ -155,25 +73,26 @@ def load_object(name, dont_reset):
     global command_giver
 
     save_command_giver = command_giver
-
-    # Truncate possible .py in the object name. #
+    
     # Remove leading '/' if any. #
     while name[0] == '/':
         name = name[1:]
 
-    if (name[-3] == '.' and name[-2] == 'p' and name[-1] == 'y'):
+    # remove file suffix if it exists
+    if name.endswith(".py"):
         name = name[:-3]
-    
-    real_name = name + ".py"
 
-    #
-    # Check if it's a legal name.
-    #
+    # check that the py-file exists    
+    real_name = name + ".py"
+    if not os.path.exists(real_name):
+        print("Could not find file for %s" % real_name, file=sys.stderr)
+        return None
+
+    # Check if it's a legal name.    
     if not legal_path(real_name):
         print("Illegal pathname: %s" % real_name, file=sys.stderr)
         return None
-    
-    
+        
     try:
         f = open(real_name, "r")
         f.close()
@@ -1342,81 +1261,45 @@ def load_object(name, dont_reset):
 #     print_svalue(arg);
 #     command_giver = save_command_giver;
 # }
-# 
-# # Find an object. If not loaded, load it !
-#  * The object may selfdestruct, which is the only case when 0 will be
-#  * returned.
-#  #
-# 
-# struct object *find_object(str)
-#     char *str;
-# {
-#     struct object *ob;
-# 
-#     # Remove leading '/' if any. #
-#     while(str[0] == '/')
-#     str++;
-#     ob = find_object2(str);
-#     if (ob)
-#     return ob;
-#     ob = load_object(str, 0);
-#     if (ob.flags & O_DESTRUCTED)        # *sigh* #
-#     return 0;
-#     if (ob && ob.flags & O_SWAPPED)
-#     load_ob_from_swap(ob);
-#     return ob;
-# }
-# 
-# # Look for a loaded object. Return 0 if non found. #
-# struct object *find_object2(str)
-#     char *str;
-# {
-#     register struct object *ob;
-#     register int length;
-# 
-#     # Remove leading '/' if any. #
-#     while(str[0] == '/')
-#     str++;
-#     # Truncate possible .c in the object name. #
-#     length = strlen(str);
-#     if (str[length-2] == '.' && str[length-1] == 'c') {
-#     # A new writreable copy of the name is needed. #
-#     char *p;
-#     p = (char *)alloca(strlen(str)+1);
-#     strcpy(p, str);
-#     str = p;
-#     str[length-2] = '\0';
-#     }
-#     if ((ob = lookup_object_hash(str))) {
-#     if (ob.flags & O_SWAPPED)
-#         load_ob_from_swap(ob);
-#     return ob;
-#     }
-#     return 0;
-# }
-# 
-# #if 0
-# 
-# void apply_command(com)
-#     char *com;
-# {
-#     struct value *ret;
-# 
-#     if (command_giver == 0)
-#     error("command_giver == 0 !\n");
-#     ret = apply(com, command_giver.super, 0);
-#     if (ret != 0) {
-#     add_message("Result:");
-#     if (ret.type == T_STRING)
-#         add_message("%s\n", ret.u.string);
-#     if (ret.type == T_NUMBER)
-#         add_message("%d\n", ret.u.number);
-#     } else {
-#     add_message("Error apply_command: function %s not found.\n", com);
-#     }
-# }
-# #endif # 0 #
-# 
+ 
+# Find an object. If not loaded, load it !
+# The object may selfdestruct, which is the only case when 0 will be
+# returned.
+
+def find_object(name):
+
+    # Remove leading '/' if any. #
+    while name[0] == '/':
+        name = name[1:]
+        
+    ob = find_object2(name)
+    if ob:
+        return ob
+    ob = load_object(name, 0)
+    
+    if not ob:
+        print("Could not load object %s" %name, file=sys.stderr)
+        exit(1)
+    
+    if ob.O_DESTRUCTED:        # *sigh* #
+        return None
+    return ob;
+
+ 
+# Look for a loaded object. Return 0 if non found. #
+def find_object2(name):
+ 
+    # Remove leading '/' if any. #
+    while name[0] == '/':
+        name = name[1:]
+        
+    # Truncate possible .py in the object name. #
+    if name.endswith(".py"):
+        name = name[:-3]
+
+    return otable.lookup_object_hash(name)
+    
+
 # #
 #  * Transfer an object.
 #  * The object has to be taken from one inventory list and added to another.
@@ -1598,20 +1481,10 @@ def load_object(name, dont_reset):
 #     }
 # }
 # #endif
-# 
-# void free_sentence(p)
-#     struct sentence *p;
-# {
-#     if (p.function)
-#     free_string(p.function);
-#     p.function = 0;
-#     if (p.verb)
-#     free_string(p.verb);
-#     p.verb = 0;
-#     p.next = sent_free;
-#     sent_free = p;
-# }
-# 
+
+# def free_sentence(p):
+#     pass
+ 
 # #
 #  * Find the sentence for a command from the player.
 #  * Return success status.

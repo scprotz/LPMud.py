@@ -1,22 +1,4 @@
-# union u {
-#     char *string;
-#     int number;
-#     struct object *ob;
-#     struct vector *vec;
-#     struct svalue *lvalue;
-# };
-# 
-# /*
-#  * The value stack element.
-#  * If it is a string, then the way that the string has been allocated differ,
-#  * wich will affect how it should be freed.
-#  */
-# struct svalue {
-#     short type;
-#     short string_type;
-#     union u u;
-# };
-# 
+ 
 # #define T_INVALID    0x0
 # #define T_LVALUE    0x1
 # #define T_NUMBER    0x2
@@ -47,7 +29,7 @@
 # 
 # /*
 #  * Control stack element.
-#  * 'prog' is usually same as 'ob->prog' (current_object), except when
+#  * 'prog' is usually same as 'ob.prog' (current_object), except when
 #  * when the current function is defined by inheritance.
 #  * The pointer, csp, will point to the values that will be used at return.
 #  */
@@ -117,7 +99,7 @@
 # #endif
 # #endif
 # 
-# #if defined(__GNUC__) && !defined(lint)
+# #if defined(__GNUC__) and !defined(lint)
 # #define INLINE /* inline */ /* Another time ! */
 # #else
 # #define INLINE
@@ -149,13 +131,13 @@
 # #define TRACE_HEART_BEAT 32
 # #define TRACE_APPLY 64
 # #define TRACE_OBJNAME 128
-# #define TRACETST(b) (command_giver->interactive->trace_level & (b))
+# #define TRACETST(b) (command_giver.interactive.trace_level & (b))
 # #define TRACEP(b) \
-#     (command_giver && command_giver->interactive && TRACETST(b) && \
-#      (command_giver->interactive->trace_prefix == 0 || \
-#       (current_object && strpref(command_giver->interactive->trace_prefix, \
-#           current_object->name))) )
-# #define TRACEHB (current_heart_beat == 0 || (command_giver->interactive->trace_level & TRACE_HEART_BEAT))
+#     (command_giver and command_giver.interactive and TRACETST(b) and \
+#      (command_giver.interactive.trace_prefix == 0 or \
+#       (current_object and strpref(command_giver.interactive.trace_prefix, \
+#           current_object.name))) )
+# #define TRACEHB (current_heart_beat == 0 or (command_giver.interactive.trace_level & TRACE_HEART_BEAT))
 # 
 # /*
 #  * Inheritance:
@@ -203,30 +185,30 @@
 #     struct object *ob;
 # {
 #     int i, j;
-#     struct program *shadow = current_object->prog, *victim = ob->prog;
+#     struct program *shadow = current_object.prog, *victim = ob.prog;
 #     struct svalue *ret;
 # 
-#     if (current_object->shadowing)
+#     if (current_object.shadowing)
 #     error("shadow: Already shadowing.\n");
-#     if (current_object->shadowed)
+#     if (current_object.shadowed)
 #     error("shadow: Can't shadow when shadowed.\n");
-#     if (current_object->super)
+#     if (current_object.super)
 #     error("The shadow must not reside inside another object.\n");
-#     if (ob->shadowing)
+#     if (ob.shadowing)
 #     error("Can't shadow a shadow.\n");
-#     for (i=0; i < shadow->num_functions; i++) {
-#     for (j=0; j < victim->num_functions; j++) {
-#         if (shadow->functions[i].name != victim->functions[j].name)
+#     for (i=0; i < shadow.num_functions; i++) {
+#     for (j=0; j < victim.num_functions; j++) {
+#         if (shadow.functions[i].name != victim.functions[j].name)
 #         continue;
-#         if (victim->functions[j].type & TYPE_MOD_NO_MASK)
+#         if (victim.functions[j].type & TYPE_MOD_NO_MASK)
 #         error("Illegal to shadow 'nomask' function \"%s\".\n",
-#               victim->functions[j].name);
+#               victim.functions[j].name);
 #     }
 #     }
 #     push_object(ob);
 #     ret = apply_master_ob("query_allow_shadow", 1);
-#     if (!(ob->flags & O_DESTRUCTED) &&
-#     ret && !(ret->type == T_NUMBER && ret->u.number == 0))
+#     if (!(ob.flags & O_DESTRUCTED) and
+#     ret and !(ret.type == T_NUMBER and ret.u.number == 0))
 #     {
 #     return 1;
 #     }
@@ -263,8 +245,8 @@
 #     sp++;
 #     if (sp == &start_of_stack[EVALUATOR_STACK_SIZE])
 #     fatal("stack overflow\n");
-#     sp->type = T_OBJECT;
-#     sp->u.ob = ob;
+#     sp.type = T_OBJECT;
+#     sp.u.ob = ob;
 #     add_ref(ob, "push_object");
 # }
 # 
@@ -278,8 +260,8 @@
 #     sp++;
 #     if (sp == &start_of_stack[EVALUATOR_STACK_SIZE])
 #     fatal("stack overflow\n");
-#     sp->type = T_NUMBER;
-#     sp->u.number = n;
+#     sp.type = T_NUMBER;
+#     sp.u.number = n;
 # }
 # 
 # /*
@@ -293,17 +275,17 @@
 #     sp++;
 #     if (sp == &start_of_stack[EVALUATOR_STACK_SIZE])
 #     fatal("stack overflow\n");
-#     sp->type = T_STRING;
-#     sp->string_type = type;
+#     sp.type = T_STRING;
+#     sp.string_type = type;
 #     switch(type) {
 #     case STRING_MALLOC:
-#     sp->u.string = string_copy(p);
+#     sp.u.string = string_copy(p);
 #     break;
 #     case STRING_SHARED:
-#     sp->u.string = make_shared_string(p);
+#     sp.u.string = make_shared_string(p);
 #     break;
 #     case STRING_CONSTANT:
-#     sp->u.string = p;
+#     sp.u.string = p;
 #     break;
 #     }
 # }
@@ -315,12 +297,12 @@
 #     int num;
 # {
 # #ifdef DEBUG
-#     if (num >= current_object->prog->num_variables) {
+#     if (num >= current_object.prog.num_variables) {
 #     fatal("Illegal variable access %d(%d). See trace above.\n",
-#         num, current_object->prog->num_variables);
+#         num, current_object.prog.num_variables);
 #     }
 # #endif
-#     return &current_object->variables[num];
+#     return &current_object.variables[num];
 # }
 # 
 # /*
@@ -330,22 +312,22 @@
 # void free_svalue(v)
 #     struct svalue *v;
 # {
-#     switch(v->type) {
+#     switch(v.type) {
 #     case T_STRING:
-#     switch(v->string_type) {
+#     switch(v.string_type) {
 #     case STRING_MALLOC:
-#         free(v->u.string);
+#         free(v.u.string);
 #         break;
 #     case STRING_SHARED:
-#         free_string(v->u.string);
+#         free_string(v.u.string);
 #         break;
 #     }
 #     break;
 #     case T_OBJECT:
-#     free_object(v->u.ob, "free_svalue");
+#     free_object(v.u.ob, "free_svalue");
 #     break;
 #     case T_POINTER:
-#     free_vector(v->u.vec);
+#     free_vector(v.u.vec);
 #     break;
 #     }
 #     *v = const0; /* marion - clear this value all away */
@@ -381,27 +363,27 @@
 #     fatal("Null pointer to assign_svalue().\n");
 # #endif
 #     *to = *from;
-#     switch(from->type) {
+#     switch(from.type) {
 #     case T_STRING:
-#     switch(from->string_type) {
+#     switch(from.string_type) {
 #     case STRING_MALLOC:    /* No idea to make the string shared */
-#         to->u.string = string_copy(from->u.string);
+#         to.u.string = string_copy(from.u.string);
 #         break;
 #     case STRING_CONSTANT:    /* Good idea to make it shared */
-#         to->string_type = STRING_SHARED;
+#         to.string_type = STRING_SHARED;
 #         /* FALL THROUGH ! */
 #     case STRING_SHARED:    /* It already is shared */
-#         to->u.string = make_shared_string(from->u.string);
+#         to.u.string = make_shared_string(from.u.string);
 #         break;
 #     default:
-#         fatal("Bad string type %d\n", from->string_type);
+#         fatal("Bad string type %d\n", from.string_type);
 #     }
 #     break;
 #     case T_OBJECT:
-#     add_ref(to->u.ob, "ass to var");
+#     add_ref(to.u.ob, "ass to var");
 #     break;
 #     case T_POINTER:
-#     to->u.vec->ref++;
+#     to.u.vec.ref++;
 #     break;
 #     }
 # }
@@ -446,27 +428,27 @@
 # 
 #     i = sp;
 #     vec = sp - 1;
-#     if (i->type != T_NUMBER || i->u.number < 0)
+#     if (i.type != T_NUMBER or i.u.number < 0)
 #     error("Illegal index\n");
-#     ind = i->u.number;
+#     ind = i.u.number;
 #     pop_stack();
-#     if (vec->type == T_STRING) {
+#     if (vec.type == T_STRING) {
 #     static struct svalue one_character;
 #     /* marion says: this is a crude part of code */
 #     one_character.type = T_NUMBER;
-#     if (ind > strlen(vec->u.string) || ind < 0)
+#     if (ind > strlen(vec.u.string) or ind < 0)
 #         one_character.u.number = 0;
 #     else
-#         one_character.u.number = vec->u.string[ind];
+#         one_character.u.number = vec.u.string[ind];
 #     free_svalue(sp);
-#     sp->type = T_LVALUE;
-#     sp->u.lvalue = &one_character;
+#     sp.type = T_LVALUE;
+#     sp.u.lvalue = &one_character;
 #     return;
 #     }
-#     if (vec->type != T_POINTER) error("Indexing on illegal type.\n");
-#     if (ind >= vec->u.vec->size) error ("Index out of bounds\n");
-#     item = &vec->u.vec->item[ind];
-#     if (vec->u.vec->ref == 1) {
+#     if (vec.type != T_POINTER) error("Indexing on illegal type.\n");
+#     if (ind >= vec.u.vec.size) error ("Index out of bounds\n");
+#     item = &vec.u.vec.item[ind];
+#     if (vec.u.vec.ref == 1) {
 #     static struct svalue quickfix = { T_NUMBER };
 #     /* marion says: but this is crude too */
 #     /* marion blushes. */
@@ -474,8 +456,8 @@
 #     item = &quickfix;
 #     }
 #     free_svalue(sp);        /* This will make 'vec' invalid to use */
-#     sp->type = T_LVALUE;
-#     sp->u.lvalue = item;
+#     sp.type = T_LVALUE;
+#     sp.u.lvalue = item;
 # }
 # 
 # #ifdef OPCPROF
@@ -511,16 +493,16 @@
 #     if (csp == &control_stack[MAX_TRACE-1])
 #     error("Too deep recursion.\n");
 #     csp++;
-#     csp->funp = funp;    /* Only used for tracebacks */
-#     csp->ob = current_object;
-#     csp->prev_ob = previous_ob;
-#     csp->fp = fp;
-#     csp->prog = current_prog;
-#     /* csp->extern_call = 0; It is set by eval_instruction() */
-#     csp->pc = pc;
-#     csp->function_index_offset = function_index_offset;
-#     csp->variable_index_offset = variable_index_offset;
-#     csp->break_sp = break_sp;
+#     csp.funp = funp;    /* Only used for tracebacks */
+#     csp.ob = current_object;
+#     csp.prev_ob = previous_ob;
+#     csp.fp = fp;
+#     csp.prog = current_prog;
+#     /* csp.extern_call = 0; It is set by eval_instruction() */
+#     csp.pc = pc;
+#     csp.function_index_offset = function_index_offset;
+#     csp.variable_index_offset = variable_index_offset;
+#     csp.break_sp = break_sp;
 # }
 # 
 # /*
@@ -532,14 +514,14 @@
 #     if (csp == control_stack - 1)
 #     fatal("Popped out of the control stack");
 # #endif
-#     current_object = csp->ob;
-#     current_prog = csp->prog;
-#     previous_ob = csp->prev_ob;
-#     pc = csp->pc;
-#     fp = csp->fp;
-#     function_index_offset = csp->function_index_offset;
-#     variable_index_offset = csp->variable_index_offset;
-#     break_sp = csp->break_sp;
+#     current_object = csp.ob;
+#     current_prog = csp.prog;
+#     previous_ob = csp.prev_ob;
+#     pc = csp.pc;
+#     fp = csp.fp;
+#     function_index_offset = csp.function_index_offset;
+#     variable_index_offset = csp.variable_index_offset;
+#     break_sp = csp.break_sp;
 #     csp--;
 # }
 # 
@@ -551,10 +533,10 @@
 # INLINE void push_vector(v)
 #     struct vector *v;
 # {
-#     v->ref++;
+#     v.ref++;
 #     sp++;
-#     sp->type = T_POINTER;
-#     sp->u.vec = v;
+#     sp.type = T_POINTER;
+#     sp.u.vec = v;
 # }
 # 
 # /*
@@ -564,9 +546,9 @@
 #     char *p;
 # {
 #     sp++;
-#     sp->type = T_STRING;
-#     sp->u.string = p;
-#     sp->string_type = STRING_MALLOC;
+#     sp.type = T_STRING;
+#     sp.u.string = p;
+#     sp.string_type = STRING_MALLOC;
 # }
 # 
 # /*
@@ -577,20 +559,20 @@
 #     char *p;
 # {
 #     sp++;
-#     sp->type = T_STRING;
-#     sp->u.string = p;
-#     sp->string_type = STRING_CONSTANT;
+#     sp.type = T_STRING;
+#     sp.u.string = p;
+#     sp.string_type = STRING_CONSTANT;
 # }
 # 
 # static void do_trace_call(funp)
 #     struct function *funp;
 # {
-#     do_trace("Call direct ", funp->name, " ");
+#     do_trace("Call direct ", funp.name, " ");
 #     if (TRACEHB) {
 #         if (TRACETST(TRACE_ARGS)) {
 #             int i;
-#             add_message(" with %d arguments: ", funp->num_arg);
-#             for(i = funp->num_arg-1; i >= 0; i--) {
+#             add_message(" with %d arguments: ", funp.num_arg);
+#             for(i = funp.num_arg-1; i >= 0; i--) {
 #                 print_svalue(&sp[-i]);
 #                 add_message(" ");
 #             }
@@ -610,37 +592,37 @@
 # {
 #     function_index_offset = 0;
 #     variable_index_offset = 0;
-#     while(funp->flags & NAME_INHERITED) {
+#     while(funp.flags & NAME_INHERITED) {
 #     function_index_offset +=
-#         current_prog->inherit[funp->offset].function_index_offset;
+#         current_prog.inherit[funp.offset].function_index_offset;
 #     variable_index_offset +=
-#         current_prog->inherit[funp->offset].variable_index_offset;
+#         current_prog.inherit[funp.offset].variable_index_offset;
 #     current_prog =
-#         current_prog->inherit[funp->offset].prog;
-#     funp = &current_prog->functions[funp->function_index_offset];
+#         current_prog.inherit[funp.offset].prog;
+#     funp = &current_prog.functions[funp.function_index_offset];
 #     }
 #     /* Remove excessive arguments */
-#     while(csp->num_local_variables > funp->num_arg) {
+#     while(csp.num_local_variables > funp.num_arg) {
 #     pop_stack();
-#     csp->num_local_variables--;
+#     csp.num_local_variables--;
 #     }
 #     /* Correct number of arguments and local variables */
-#     while(csp->num_local_variables < funp->num_arg + funp->num_local) {
+#     while(csp.num_local_variables < funp.num_arg + funp.num_local) {
 #     push_number(0);
-#     csp->num_local_variables++;
+#     csp.num_local_variables++;
 #     }
 #     tracedepth++;
 #     if (TRACEP(TRACE_CALL)) {
 #     do_trace_call(funp);
 #     }
-#     fp = sp - csp->num_local_variables + 1;
+#     fp = sp - csp.num_local_variables + 1;
 #     break_sp = (short*)(sp+1);
 #     return funp;
 # }
 # 
 # static void break_point()
 # {
-#     if (sp - fp - csp->num_local_variables + 1 != 0)
+#     if (sp - fp - csp.num_local_variables + 1 != 0)
 #     fatal("Bad stack pointer.\n");
 # }
 # 
@@ -677,15 +659,15 @@
 #      * the way.
 #      */
 #     p = (struct error_context_stack *)xalloc (sizeof *p);
-#     p->save_sp = sp;
-#     p->save_csp = csp;    
-#     p->save_command_giver = command_giver;
+#     p.save_sp = sp;
+#     p.save_csp = csp;    
+#     p.save_command_giver = command_giver;
 #     memcpy (
-#         (char *)p->old_error_context,
+#         (char *)p.old_error_context,
 #         (char *)error_recovery_context,
 #         sizeof error_recovery_context);
-#     p->old_exists_flag = error_recovery_context_exists;
-#     p->next = ecsp;
+#     p.old_exists_flag = error_recovery_context_exists;
+#     p.next = ecsp;
 #     ecsp = p;
 #     } else {
 #     p = ecsp;
@@ -693,14 +675,14 @@
 #         fatal("Catch: error context stack underflow");
 #     if (push == 0) {
 # #ifdef DEBUG
-#         if (csp != p->save_csp-1)
+#         if (csp != p.save_csp-1)
 #         fatal("Catch: Lost track of csp");
 # #if 0
 #         /*
 #          * This test is not valid! The statement catch(exec("...")) will
 #          * change the value of command_giver.
 #          */
-#         if (command_giver != p->save_command_giver)
+#         if (command_giver != p.save_command_giver)
 #         fatal("Catch: Lost track of command_giver");
 # #endif
 # #endif
@@ -709,15 +691,15 @@
 #          * They did a throw() or error. That means that the control
 #          * stack must be restored manually here.
 #          */
-#         csp = p->save_csp;    
-#         pop_n_elems (sp - p->save_sp);
-#         command_giver = p->save_command_giver;
+#         csp = p.save_csp;    
+#         pop_n_elems (sp - p.save_sp);
+#         command_giver = p.save_command_giver;
 #     }
 #     memcpy ((char *)error_recovery_context,
-#         (char *)p->old_error_context,
+#         (char *)p.old_error_context,
 #         sizeof error_recovery_context);
-#     error_recovery_context_exists = p->old_exists_flag;
-#     ecsp = p->next;
+#     error_recovery_context_exists = p.old_exists_flag;
+#     ecsp = p.next;
 #     free ((char *)p);
 #     }
 # }
@@ -742,18 +724,18 @@
 # {
 #     int i;
 # 
-#     for (i=0; i < v->size; i++) {
-#     if (v->item[i].type != T_OBJECT)
+#     for (i=0; i < v.size; i++) {
+#     if (v.item[i].type != T_OBJECT)
 #         continue;
-#     if (!(v->item[i].u.ob->flags & O_DESTRUCTED))
+#     if (!(v.item[i].u.ob.flags & O_DESTRUCTED))
 #         continue;
-#     assign_svalue(&v->item[i], &const0);
+#     assign_svalue(&v.item[i], &const0);
 #     }
 # }
 # 
 # /*
 #  * Evaluate instructions at address 'p'. All program offsets are
-#  * to current_prog->program. 'current_prog' must be setup before
+#  * to current_prog.program. 'current_prog' must be setup before
 #  * call of this function.
 #  *
 #  * There must not be destructed objects on the stack. The destruct_object()
@@ -776,19 +758,19 @@
 #     struct svalue *expected_stack, *argp;
 # 
 #     /* Next F_RETURN at this level will return out of eval_instruction() */
-#     csp->extern_call = 1;
+#     csp.extern_call = 1;
 #     pc = p;
 # again:
 #     instruction = EXTRACT_UCHAR(pc);
 # #ifdef TRACE_CODE
 #     previous_instruction[last] = instruction + F_OFFSET;
 #     previous_pc[last] = pc;
-#     stack_size[last] = sp - fp - csp->num_local_variables;
+#     stack_size[last] = sp - fp - csp.num_local_variables;
 #     last = (last + 1) % (sizeof previous_instruction / sizeof (int));
 # #endif
 #     pc++;
-#     if (current_object->user)
-#     current_object->user->cost++;
+#     if (current_object.user)
+#     current_object.user.cost++;
 #     eval_cost++;
 #     if (eval_cost > MAX_COST) {
 #     printf("eval_cost too big %d\n", eval_cost);
@@ -804,28 +786,28 @@
 #     num_arg = EXTRACT_UCHAR(pc);
 #     pc++;
 #     if (num_arg > 0) {
-#         if (instrs[instruction].type[0] != 0 &&
-#         (instrs[instruction].type[0] & (sp-num_arg+1)->type) == 0) {
+#         if (instrs[instruction].type[0] != 0 and
+#         (instrs[instruction].type[0] & (sp-num_arg+1).type) == 0) {
 #         bad_arg(1, instruction + F_OFFSET);
 #         }
 #     }
 #     if (num_arg > 1) {
-#         if (instrs[instruction].type[1] != 0 &&
-#         (instrs[instruction].type[1] & (sp-num_arg+2)->type) == 0) {
+#         if (instrs[instruction].type[1] != 0 and
+#         (instrs[instruction].type[1] & (sp-num_arg+2).type) == 0) {
 #         bad_arg(2, instruction + F_OFFSET);
 #         }
 #     }
 #     } else {
 #     num_arg = instrs[instruction].min_arg;
 #     if (instrs[instruction].min_arg > 0) {
-#         if (instrs[instruction].type[0] != 0 &&
-#         (instrs[instruction].type[0] & (sp-num_arg+1)->type) == 0) {
+#         if (instrs[instruction].type[0] != 0 and
+#         (instrs[instruction].type[0] & (sp-num_arg+1).type) == 0) {
 #         bad_arg(1, instruction + F_OFFSET);
 #         }
 #     }
 #     if (instrs[instruction].min_arg > 1) {
-#         if (instrs[instruction].type[1] != 0 &&
-#         (instrs[instruction].type[1] & (sp-num_arg+2)->type) == 0) {
+#         if (instrs[instruction].type[1] != 0 and
+#         (instrs[instruction].type[1] & (sp-num_arg+2).type) == 0) {
 #         bad_arg(2, instruction + F_OFFSET);
 #         }
 #     }
@@ -844,7 +826,7 @@
 #     }
 #     instruction += F_OFFSET;
 # #ifdef OPCPROF
-#     if (instruction >= 0 && instruction < MAXOPC) opcount[instruction]++;
+#     if (instruction >= 0 and instruction < MAXOPC) opcount[instruction]++;
 # #endif
 #     /*
 #      * Execute the instructions. The number of arguments are correct,
@@ -861,20 +843,20 @@
 #     CASE(F_REGEXP);
 #     {
 #     struct vector *v;
-#     v = match_regexp((sp-1)->u.vec, sp->u.string);
+#     v = match_regexp((sp-1).u.vec, sp.u.string);
 #     pop_n_elems(2);
 #     if (v == 0)
 #         push_number(0);
 #     else {
 #         push_vector(v);
-#         v->ref--;        /* Will make ref count == 1 */
+#         v.ref--;        /* Will make ref count == 1 */
 #     }
 #     break;
 #     }
 #     CASE(F_SHADOW);
-#     ob = (sp-1)->u.ob;
-#     if (sp->u.number == 0) {
-#         ob = ob->shadowed;
+#     ob = (sp-1).u.ob;
+#     if (sp.u.number == 0) {
+#         ob = ob.shadowed;
 #         pop_n_elems(2);
 #         if (ob)
 #         push_object(ob);
@@ -886,10 +868,10 @@
 #         /*
 #          * The shadow is entered first in the chain.
 #          */
-#         while (ob->shadowed)
-#         ob = ob->shadowed;
-#         current_object->shadowing = ob;
-#         ob->shadowed = current_object;
+#         while (ob.shadowed)
+#         ob = ob.shadowed;
+#         current_object.shadowing = ob;
+#         ob.shadowed = current_object;
 #         pop_n_elems(2);
 #         push_object(ob);
 #         break;
@@ -910,8 +892,8 @@
 # 
 #     ((char *)&offset)[0] = pc[0];
 #     ((char *)&offset)[1] = pc[1];
-#     if (sp->type == T_NUMBER && sp->u.number == 0)
-#         pc = current_prog->program + offset;
+#     if (sp.type == T_NUMBER and sp.u.number == 0)
+#         pc = current_prog.program + offset;
 #     else
 #         pc += 2;
 #     pop_stack();
@@ -923,7 +905,7 @@
 # 
 #     ((char *)&offset)[0] = pc[0];
 #     ((char *)&offset)[1] = pc[1];
-#     pc = current_prog->program + offset;
+#     pc = current_prog.program + offset;
 #     break;
 #     }
 #     CASE(F_JUMP_WHEN_NON_ZERO);
@@ -932,25 +914,25 @@
 # 
 #     ((char *)&offset)[0] = pc[0];
 #     ((char *)&offset)[1] = pc[1];
-#     if (sp->type == T_NUMBER && sp->u.number == 0)
+#     if (sp.type == T_NUMBER and sp.u.number == 0)
 #         pc += 2;
 #     else
-#         pc = current_prog->program + offset;
+#         pc = current_prog.program + offset;
 #     pop_stack();
 #     break;
 #     }
 #     CASE(F_INDIRECT);
 # #ifdef DEBUG
-#     if (sp->type != T_LVALUE)
+#     if (sp.type != T_LVALUE)
 #         fatal("Bad type to F_INDIRECT\n");
 # #endif
-#     assign_svalue(sp, sp->u.lvalue);
+#     assign_svalue(sp, sp.u.lvalue);
 #     /*
 #      * Fetch value of a variable. It is possible that it is a variable
 #      * that points to a destructed object. In that case, it has to
 #      * be replaced by 0.
 #      */
-#     if (sp->type == T_OBJECT && (sp->u.ob->flags & O_DESTRUCTED)) {
+#     if (sp.type == T_OBJECT and (sp.u.ob.flags & O_DESTRUCTED)) {
 #         free_svalue(sp);
 #         *sp = const0;
 #     }
@@ -965,15 +947,15 @@
 #      * that points to a destructed object. In that case, it has to
 #      * be replaced by 0.
 #      */
-#     if (sp->type == T_OBJECT && (sp->u.ob->flags & O_DESTRUCTED)) {
+#     if (sp.type == T_OBJECT and (sp.u.ob.flags & O_DESTRUCTED)) {
 #         free_svalue(sp);
 #         *sp = const0;
 #     }
 #     break;
 #     CASE(F_PUSH_IDENTIFIER_LVALUE);
 #     sp++;
-#     sp->type = T_LVALUE;
-#     sp->u.lvalue = find_value((int)(EXTRACT_UCHAR(pc) +
+#     sp.type = T_LVALUE;
+#     sp.u.lvalue = find_value((int)(EXTRACT_UCHAR(pc) +
 #                     variable_index_offset));
 #     pc++;
 #     break;
@@ -982,16 +964,16 @@
 #     break;
 #     CASE(F_INDEX);
 #     push_indexed_lvalue();
-#     assign_svalue_no_free(sp, sp->u.lvalue);
+#     assign_svalue_no_free(sp, sp.u.lvalue);
 #     /*
 #      * Fetch value of a variable. It is possible that it is a variable
 #      * that points to a destructed object. In that case, it has to
 #      * be replaced by 0.
 #      */
-#     if (sp->type == T_OBJECT && (sp->u.ob->flags & O_DESTRUCTED)) {
+#     if (sp.type == T_OBJECT and (sp.u.ob.flags & O_DESTRUCTED)) {
 #         free_svalue(sp);
-#         sp->type = T_NUMBER;
-#         sp->u.number = 0;
+#         sp.type = T_NUMBER;
+#         sp.u.number = 0;
 #     }
 #     break;
 #     CASE(F_LOCAL_NAME);
@@ -1003,15 +985,15 @@
 #      * that points to a destructed object. In that case, it has to
 #      * be replaced by 0.
 #      */
-#     if (sp->type == T_OBJECT && (sp->u.ob->flags & O_DESTRUCTED)) {
+#     if (sp.type == T_OBJECT and (sp.u.ob.flags & O_DESTRUCTED)) {
 #         free_svalue(sp);
 #         *sp = const0;
 #     }
 #     break;
 #     CASE(F_PUSH_LOCAL_VARIABLE_LVALUE);
 #     sp++;
-#     sp->type = T_LVALUE;
-#     sp->u.lvalue = fp + EXTRACT_UCHAR(pc);
+#     sp.type = T_LVALUE;
+#     sp.u.lvalue = fp + EXTRACT_UCHAR(pc);
 #     pc++;
 #     break;
 #     CASE(F_RETURN);
@@ -1022,7 +1004,7 @@
 #     /*
 #      * Deallocate frame and return.
 #      */
-#     for (i=0; i < csp->num_local_variables; i++)
+#     for (i=0; i < csp.num_local_variables; i++)
 #         pop_stack();
 #     sp++;
 # #ifdef DEBUG
@@ -1050,12 +1032,12 @@
 #     break_point();    /* generated by lang.y when -d. Will check stack. */
 #     break;
 #     CASE(F_CLONE_OBJECT);
-#     ob = clone_object(sp->u.string);
+#     ob = clone_object(sp.u.string);
 #     pop_stack();
 #     if (ob) {
 #         sp++;
-#         sp->type = T_OBJECT;
-#         sp->u.ob = ob;
+#         sp.type = T_OBJECT;
+#         sp.u.ob = ob;
 #         add_ref(ob, "F_CLONE_OBJECT");
 #     } else {
 #         push_number(0);
@@ -1071,15 +1053,15 @@
 #     pc += 2;
 #     v = allocate_array((int)num);
 #     for (i=0; i < num; i++)
-#         assign_svalue_no_free(&v->item[i], sp + i - num + 1);
+#         assign_svalue_no_free(&v.item[i], sp + i - num + 1);
 #     pop_n_elems((int)num);
 #     sp++;
-#     sp->type = T_POINTER;
-#     sp->u.vec = v;        /* Ref count already initialized */
+#     sp.type = T_POINTER;
+#     sp.u.vec = v;        /* Ref count already initialized */
 #     break;
 #     }
 #     CASE(F_TAIL);
-#     if (tail(sp->u.string))
+#     if (tail(sp.u.string))
 #         assign_svalue(sp, &const1);
 #     else
 #         assign_svalue(sp, &const0);
@@ -1099,38 +1081,38 @@
 #      * which is pointed to by current_object.
 #      */
 # #ifdef DEBUG
-#     if (func_index >= current_object->prog->num_functions)
+#     if (func_index >= current_object.prog.num_functions)
 #         fatal("Illegal function index\n");
 # #endif
 # 
 #     /* NOT current_prog, which can be an inherited object. */
-#     funp = &current_object->prog->functions[func_index];
+#     funp = &current_object.prog.functions[func_index];
 # 
-#     if (funp->flags & NAME_UNDEFINED)
-#         error("Undefined function: %s\n", funp->name);
+#     if (funp.flags & NAME_UNDEFINED)
+#         error("Undefined function: %s\n", funp.name);
 #     /* Save all important global stack machine registers */
 #     push_control_stack(funp);    /* return pc is adjusted later */
 # 
 #     /* This assigment must be done after push_control_stack() */
-#     current_prog = current_object->prog;
+#     current_prog = current_object.prog;
 #     /*
 #      * If it is an inherited function, search for the real
 #      * definition.
 #      */
-#     csp->num_local_variables = EXTRACT_UCHAR(pc);
+#     csp.num_local_variables = EXTRACT_UCHAR(pc);
 #     pc++;
 #     funp = setup_new_frame(funp);
-#     csp->pc = pc;    /* The corrected return address */
-#     pc = current_prog->program + funp->offset;
-#     csp->extern_call = 0;
+#     csp.pc = pc;    /* The corrected return address */
+#     pc = current_prog.program + funp.offset;
+#     csp.extern_call = 0;
 #     break;
 #     }
 #     CASE(F_SAVE_OBJECT);
-#     save_object(current_object, sp->u.string);
+#     save_object(current_object, sp.u.string);
 #     /* The argument is returned */
 #     break;
 #     CASE(F_FIND_OBJECT);
-#     ob = find_object2(sp->u.string);
+#     ob = find_object2(sp.u.string);
 #     pop_stack();
 #     if (ob)
 #         push_object(ob);
@@ -1138,7 +1120,7 @@
 #         push_number(0);
 #     break;
 #     CASE(F_FIND_PLAYER);
-#     ob = find_living_object(sp->u.string, 1);
+#     ob = find_living_object(sp.u.string, 1);
 #     pop_stack();
 #     if (!ob)
 #         push_number(0);
@@ -1146,7 +1128,7 @@
 #         push_object(ob);
 #     break;
 #     CASE(F_WRITE_FILE);
-#     i = write_file((sp-1)->u.string, sp->u.string);
+#     i = write_file((sp-1).u.string, sp.u.string);
 #     pop_n_elems(2);
 #     push_number(i);
 #     break;
@@ -1199,17 +1181,17 @@
 #     break;
 #     }
 #     CASE(F_WRITE_BYTES);
-#     i = write_bytes((sp-2)->u.string, (sp-1)->u.number, sp->u.string);
+#     i = write_bytes((sp-2).u.string, (sp-1).u.number, sp.u.string);
 #     pop_n_elems(3);
 #     push_number(i);
 #     break;
 #     CASE(F_FILE_SIZE);
-#     i = file_size(sp->u.string);
+#     i = file_size(sp.u.string);
 #     pop_stack();
 #     push_number(i);
 #     break;
 #     CASE(F_FIND_LIVING);
-#     ob = find_living_object(sp->u.string, 0);
+#     ob = find_living_object(sp.u.string, 0);
 #     pop_stack();
 #     if (!ob)
 #         push_number(0);
@@ -1217,20 +1199,20 @@
 #         push_object(ob);
 #     break;
 #     CASE(F_TELL_OBJECT);
-#     tell_object((sp-1)->u.ob, sp->u.string);
+#     tell_object((sp-1).u.ob, sp.u.string);
 #     pop_stack();    /* Return first argument */
 #     break;
 #     CASE(F_RESTORE_OBJECT);
-#     i = restore_object(current_object, sp->u.string);
+#     i = restore_object(current_object, sp.u.string);
 #     pop_stack();
 #     push_number(i);
 #     break;
 #     CASE(F_THIS_PLAYER);
 #     pop_n_elems(num_arg);
-#     if (num_arg && current_interactive &&
-#         !(current_interactive->flags & O_DESTRUCTED))
+#     if (num_arg and current_interactive and
+#         !(current_interactive.flags & O_DESTRUCTED))
 #         push_object(current_interactive);
-#     else if (command_giver && !(command_giver->flags & O_DESTRUCTED))
+#     else if (command_giver and !(command_giver.flags & O_DESTRUCTED))
 #         push_object(command_giver);
 #     else
 #         push_number(0);
@@ -1246,7 +1228,7 @@
 #     break;
 # #endif /* F_FIRST_INVENTORY */
 #     CASE(F_LIVING);
-#     if (sp->u.ob->flags & O_ENABLE_COMMANDS)
+#     if (sp.u.ob.flags & O_ENABLE_COMMANDS)
 #         assign_svalue(sp, &const1);
 #     else
 #         assign_svalue(sp, &const0);
@@ -1256,13 +1238,13 @@
 #     /*
 #      * Are there any reasons to support this one in -o mode ?
 #      */
-#     ob = sp->u.ob;
+#     ob = sp.u.ob;
 # #ifdef DEBUG
-#     if (ob->user == 0)
+#     if (ob.user == 0)
 #         fatal("User is null pointer\n");
 # #endif
 #     {   char *tmp;
-#         tmp = ob->user->name;
+#         tmp = ob.user.name;
 #         pop_stack();
 #         push_string(tmp, STRING_CONSTANT);
 #     }
@@ -1273,11 +1255,11 @@
 #     /*
 #      * Are there any reasons to support this one in -o mode ?
 #      */
-#     ob = sp->u.ob;
+#     ob = sp.u.ob;
 # 
-#     if (ob->eff_user) {
+#     if (ob.eff_user) {
 #         char *tmp;
-#         tmp = ob->eff_user->name;
+#         tmp = ob.eff_user.name;
 #         pop_stack();
 #         push_string(tmp, STRING_CONSTANT);
 #     }
@@ -1289,12 +1271,12 @@
 # #endif /* F_GETEUID */
 # #ifdef F_EXPORT_UID
 #     CASE(F_EXPORT_UID);
-#     if (current_object->eff_user == 0)
+#     if (current_object.eff_user == 0)
 #         error("Illegal to export uid 0\n");
-#     ob = sp->u.ob;
-#     if (ob->eff_user)    /* Only allowed to export when null */
+#     ob = sp.u.ob;
+#     if (ob.eff_user)    /* Only allowed to export when null */
 #         break;
-#     ob->user = current_object->eff_user;
+#     ob.user = current_object.eff_user;
 #     break;
 # #endif /* F_EXPORT_UID */
 # #ifdef F_SETEUID
@@ -1302,26 +1284,26 @@
 #     {
 #     struct svalue *ret;
 # 
-#     if (sp->type == T_NUMBER) {
-#         if (sp->u.number != 0)
+#     if (sp.type == T_NUMBER) {
+#         if (sp.u.number != 0)
 #         bad_arg(1, F_SETEUID);
-#         current_object->eff_user = 0;
+#         current_object.eff_user = 0;
 #         pop_stack();
 #         push_number(1);
 #         break;
 #     }
 #     argp = sp;
-#     if (argp->type != T_STRING)
+#     if (argp.type != T_STRING)
 #         bad_arg(1, F_SETEUID);
 #     push_object(current_object);
-#     push_string(argp->u.string, STRING_CONSTANT);
+#     push_string(argp.u.string, STRING_CONSTANT);
 #     ret = apply_master_ob("valid_seteuid", 2);
-#     if (ret == 0 || ret->type != T_NUMBER || ret->u.number != 1) {
+#     if (ret == 0 or ret.type != T_NUMBER or ret.u.number != 1) {
 #         pop_stack();
 #         push_number(0);
 #         break;
 #     }
-#     current_object->eff_user = add_name(argp->u.string);
+#     current_object.eff_user = add_name(argp.u.string);
 #     pop_stack();
 #     push_number(1);
 #     break;
@@ -1335,12 +1317,12 @@
 # #endif /* F_SETUID */
 # #ifdef F_CREATOR
 #     CASE(F_CREATOR);
-#     ob = sp->u.ob;
-#     if (ob->user == 0) {
+#     ob = sp.u.ob;
+#     if (ob.user == 0) {
 #         assign_svalue(sp, &const0);
 #     } else {
 #         pop_stack();
-#         push_string(ob->user->name, STRING_CONSTANT);
+#         push_string(ob.user.name, STRING_CONSTANT);
 #     }
 #     break;
 # #endif
@@ -1351,11 +1333,11 @@
 #     CASE(F_EXPLODE);
 #     {
 #     struct vector *v;
-#     v = explode_string((sp-1)->u.string, sp->u.string);
+#     v = explode_string((sp-1).u.string, sp.u.string);
 #     pop_n_elems(2);
 #     if (v) {
 #         push_vector(v);    /* This will make ref count == 2 */
-#         v->ref--;
+#         v.ref--;
 #     } else {
 #         push_number(0);
 #     }
@@ -1387,7 +1369,7 @@
 #     pop_n_elems(num_arg);
 #     if (v) {
 #         push_vector(v); /* This will make ref count == 2 */
-#         v->ref--;
+#         v.ref--;
 #     } else {
 #         push_number(0);
 #     }
@@ -1398,27 +1380,27 @@
 #     char *str;
 #     int len, old_len, ind;
 # 
-#     if (sp->u.number > MAX_BITS)
-#         error("set_bit: too big bit number: %d\n", sp->u.number);
-#     len = strlen((sp-1)->u.string);
+#     if (sp.u.number > MAX_BITS)
+#         error("set_bit: too big bit number: %d\n", sp.u.number);
+#     len = strlen((sp-1).u.string);
 #     old_len = len;
-#     ind = sp->u.number/6;
+#     ind = sp.u.number/6;
 #     if (ind >= len)
 #         len = ind + 1;
 #     str = xalloc(len+1);
 #     str[len] = '\0';
 #     if (old_len)
-#         memcpy(str, (sp-1)->u.string, old_len);
+#         memcpy(str, (sp-1).u.string, old_len);
 #     if (len > old_len)
 #         memset(str + old_len, ' ', len - old_len);
-#     if (str[ind] > 0x3f + ' ' || str[ind] < ' ')
+#     if (str[ind] > 0x3f + ' ' or str[ind] < ' ')
 #         error("Illegal bit pattern in set_bit character %d\n", ind);
-#     str[ind] = ((str[ind] - ' ') | 1 << sp->u.number % 6) + ' ';
+#     str[ind] = ((str[ind] - ' ') | 1 << sp.u.number % 6) + ' ';
 #     pop_n_elems(2);
 #     sp++;
-#     sp->u.string = str;
-#     sp->string_type = STRING_MALLOC;
-#     sp->type = T_STRING;
+#     sp.u.string = str;
+#     sp.string_type = STRING_MALLOC;
+#     sp.type = T_STRING;
 #     break;
 #     }
 #     CASE(F_CLEAR_BIT);
@@ -1426,38 +1408,38 @@
 #     char *str;
 #     int len, ind;
 # 
-#     if (sp->u.number > MAX_BITS)
-#         error("clear_bit: too big bit number: %d\n", sp->u.number);
-#     len = strlen((sp-1)->u.string);
-#     ind = sp->u.number/6;
+#     if (sp.u.number > MAX_BITS)
+#         error("clear_bit: too big bit number: %d\n", sp.u.number);
+#     len = strlen((sp-1).u.string);
+#     ind = sp.u.number/6;
 #     if (ind >= len) {
 #         /* Return first argument unmodified ! */
 #         pop_stack();
 #         break;
 #     }
 #     str = xalloc(len+1);
-#     memcpy(str, (sp-1)->u.string, len+1);    /* Including null byte */
-#     if (str[ind] > 0x3f + ' ' || str[ind] < ' ')
+#     memcpy(str, (sp-1).u.string, len+1);    /* Including null byte */
+#     if (str[ind] > 0x3f + ' ' or str[ind] < ' ')
 #         error("Illegal bit pattern in clear_bit character %d\n", ind);
-#     str[ind] = ((str[ind] - ' ') & ~(1 << sp->u.number % 6)) + ' ';
+#     str[ind] = ((str[ind] - ' ') & ~(1 << sp.u.number % 6)) + ' ';
 #     pop_n_elems(2);
 #     sp++;
-#     sp->type = T_STRING;
-#     sp->string_type = STRING_MALLOC;
-#     sp->u.string = str;
+#     sp.type = T_STRING;
+#     sp.string_type = STRING_MALLOC;
+#     sp.u.string = str;
 #     break;
 #     }
 #     CASE(F_TEST_BIT);
 #     {
 #     int len;
 # 
-#     len = strlen((sp-1)->u.string);
-#     if (sp->u.number/6 >= len) {
+#     len = strlen((sp-1).u.string);
+#     if (sp.u.number/6 >= len) {
 #         pop_n_elems(2);
 #         push_number(0);
 #         break;
 #     }
-#     if (((sp-1)->u.string[sp->u.number/6] - ' ') & 1 << sp->u.number % 6) {
+#     if (((sp-1).u.string[sp.u.number/6] - ' ') & 1 << sp.u.number % 6) {
 #         pop_n_elems(2);
 #         push_number(1);
 #     } else {
@@ -1487,9 +1469,9 @@
 #     pc += 2;
 # 
 #     push_control_stack(0);
-#     csp->num_local_variables = 0;    /* No extra variables */
-#     csp->pc = current_prog->program + new_pc_offset;
-#     csp->num_local_variables = (csp-1)->num_local_variables; /* marion */
+#     csp.num_local_variables = 0;    /* No extra variables */
+#     csp.pc = current_prog.program + new_pc_offset;
+#     csp.num_local_variables = (csp-1).num_local_variables; /* marion */
 #     /*
 #      * Save some global variables that must be restored separately
 #      * after a longjmp. The stack will have to be manually popped all
@@ -1521,7 +1503,7 @@
 #      * the return from catch is now done by a 0 throw
 #      */
 #     assign_svalue(&catch_value, sp--);
-#     if (catch_value.type == T_NUMBER && catch_value.u.number == 0) {
+#     if (catch_value.type == T_NUMBER and catch_value.u.number == 0) {
 #         /* We come here when no longjmp() was executed. */
 #         pop_control_stack();
 #         push_pop_error_context (0);
@@ -1529,30 +1511,30 @@
 #     } else throw_error(); /* do the longjump, with extra checks... */
 #     break;
 #     CASE(F_NOTIFY_FAIL);
-#     set_notify_fail_message(sp->u.string);
+#     set_notify_fail_message(sp.u.string);
 #     /* Return the argument */
 #     break;
 #     CASE(F_QUERY_IDLE);
-#     i = query_idle(sp->u.ob);
+#     i = query_idle(sp.u.ob);
 #     pop_stack();
 #     push_number(i);
 #     break;
 #     CASE(F_INTERACTIVE);
-#         i = (int)sp->u.ob->interactive;
+#         i = (int)sp.u.ob.interactive;
 #     pop_stack();
 #     push_number(i);
 #     break;
 #     CASE(F_IMPLODE);
 #     {
 #     char *str;
-#     check_for_destr((sp-1)->u.vec);
-#     str = implode_string((sp-1)->u.vec, sp->u.string);
+#     check_for_destr((sp-1).u.vec);
+#     str = implode_string((sp-1).u.vec, sp.u.string);
 #     pop_n_elems(2);
 #     if (str) {
 #         sp++;
-#         sp->type = T_STRING;
-#         sp->string_type = STRING_MALLOC;
-#         sp->u.string = str;
+#         sp.type = T_STRING;
+#         sp.string_type = STRING_MALLOC;
+#         sp.u.string = str;
 #     } else {
 #         push_number(0);
 #     }
@@ -1564,21 +1546,21 @@
 #     struct svalue *arg1;
 # #endif
 # 
-#     if (command_giver == 0 || sp->u.ob->interactive == 0 || (command_giver->flags & O_DESTRUCTED)) {
+#     if (command_giver == 0 or sp.u.ob.interactive == 0 or (command_giver.flags & O_DESTRUCTED)) {
 #         assign_svalue(sp, &const0);
 #         break;
 #     }
 # #ifdef COMPAT_MODE
 #     arg1 = sapply("query_level", command_giver, 0);
-#     if (arg1 == 0 || arg1->type != T_NUMBER || arg1->u.number < 22) {
+#     if (arg1 == 0 or arg1.type != T_NUMBER or arg1.u.number < 22) {
 #         assign_svalue(sp, &const0);
 #         break;
 #     }
-#     ob = query_snoop(sp->u.ob);
+#     ob = query_snoop(sp.u.ob);
 # #else
 #     assert_master_ob_loaded();
 #     if (current_object == master_ob)
-#         ob = query_snoop(sp->u.ob);
+#         ob = query_snoop(sp.u.ob);
 #     else
 #         ob = 0;
 # #endif
@@ -1596,12 +1578,12 @@
 #      extern char *query_ip_name PROT((struct object *));
 #     char *tmp;
 # 
-#     if (num_arg == 1 && sp->type != T_OBJECT)
+#     if (num_arg == 1 and sp.type != T_OBJECT)
 #         error("Bad optional argument to query_ip_number()\n");
 #     if (instruction == F_QUERY_IP_NAME)
-#         tmp = query_ip_name(num_arg ? sp->u.ob : 0);
+#         tmp = query_ip_name(num_arg ? sp.u.ob : 0);
 #     else
-#         tmp = query_ip_number(num_arg ? sp->u.ob : 0);
+#         tmp = query_ip_number(num_arg ? sp.u.ob : 0);
 #     if (num_arg)
 #         pop_stack();
 #     if (tmp == 0)
@@ -1624,10 +1606,10 @@
 #     }
 # #ifdef F_NEXT_INVENTORY
 #     CASE(F_NEXT_INVENTORY);
-#     ob = sp->u.ob;
+#     ob = sp.u.ob;
 #     pop_stack();
-#     if (ob->next_inv)
-#         push_object(ob->next_inv);
+#     if (ob.next_inv)
+#         push_object(ob.next_inv);
 #     else
 #         push_number(0);
 #     break;
@@ -1635,13 +1617,13 @@
 #     CASE(F_ALL_INVENTORY);
 #     {
 #     struct vector *vec;
-#     vec = all_inventory(sp->u.ob);
+#     vec = all_inventory(sp.u.ob);
 #     pop_stack();
 #     if (vec == 0) {
 #         push_number(0);
 #     } else {
 #         push_vector(vec); /* This will make ref count == 2 */
-#         vec->ref--;
+#         vec.ref--;
 #     }
 #     break;
 #     }
@@ -1649,18 +1631,18 @@
 #     {
 #     struct vector *vec;
 # 
-#     vec = deep_inventory(sp->u.ob, 0);
+#     vec = deep_inventory(sp.u.ob, 0);
 #     free_svalue(sp);
-#     sp->type = T_POINTER;
-#     sp->u.vec = vec;
+#     sp.type = T_POINTER;
+#     sp.u.vec = vec;
 #     break;
 #     }
 #     CASE(F_ENVIRONMENT);
 #     if (num_arg) {
 #         ob = environment(sp);
 #         pop_stack();
-#     } else if (!(current_object->flags & O_DESTRUCTED)) {
-#         ob = current_object->super;
+#     } else if (!(current_object.flags & O_DESTRUCTED)) {
+#         ob = current_object.super;
 #     } else
 #         ob = 0;
 #     if (ob)
@@ -1669,13 +1651,13 @@
 #         push_number(0);
 #     break;
 #     CASE(F_THIS_OBJECT);
-#     if (current_object->flags & O_DESTRUCTED)
+#     if (current_object.flags & O_DESTRUCTED)
 #         push_number(0);
 #     else
 #         push_object(current_object);
 #     break;
 #     CASE(F_PREVIOUS_OBJECT);
-#     if (previous_ob == 0 || (previous_ob->flags & O_DESTRUCTED))
+#     if (previous_ob == 0 or (previous_ob.flags & O_DESTRUCTED))
 #         push_number(0);
 #     else
 #         push_object(previous_ob);
@@ -1687,18 +1669,18 @@
 #     break;
 # #endif /* F_LOCALCMD */
 #     CASE(F_SWAP);
-#     (void)swap(sp->u.ob);
+#     (void)swap(sp.u.ob);
 #     break;
 #     CASE(F_TRACE);
 #     {
 #         int ot = -1;
-#         if (command_giver && command_giver->interactive) {
+#         if (command_giver and command_giver.interactive) {
 #         struct svalue *arg;
 #         push_constant_string("trace");
 #         arg = apply_master_ob("query_player_level", 1);
-#         if (arg && (arg->type != T_NUMBER || arg->u.number != 0)) {
-#             ot = command_giver->interactive->trace_level;
-#             command_giver->interactive->trace_level = sp->u.number;
+#         if (arg and (arg.type != T_NUMBER or arg.u.number != 0)) {
+#             ot = command_giver.interactive.trace_level;
+#             command_giver.interactive.trace_level = sp.u.number;
 #         }
 #         }
 #         pop_stack();
@@ -1709,17 +1691,17 @@
 #     {
 #         char *old = 0;
 # 
-#         if (command_giver && command_giver->interactive) {
+#         if (command_giver and command_giver.interactive) {
 #         struct svalue *arg;
 #         push_constant_string("trace");
 #         arg = apply_master_ob("query_player_level",1);
-#         if (arg && (arg->type != T_NUMBER || arg->u.number)) {
-#             old = command_giver->interactive->trace_prefix;
-#             if (sp->type == T_STRING) {
-#                 command_giver->interactive->trace_prefix = 
-#                 make_shared_string(sp->u.string);
+#         if (arg and (arg.type != T_NUMBER or arg.u.number)) {
+#             old = command_giver.interactive.trace_prefix;
+#             if (sp.type == T_STRING) {
+#                 command_giver.interactive.trace_prefix = 
+#                 make_shared_string(sp.u.string);
 #                     } else
-#                 command_giver->interactive->trace_prefix = 0;
+#                 command_giver.interactive.trace_prefix = 0;
 #         }
 #         }
 #         pop_stack();
@@ -1736,7 +1718,7 @@
 #     break;
 #     CASE(F_WIZLIST);
 #     if (num_arg) {
-#         wizlist(sp->u.string);
+#         wizlist(sp.u.string);
 #     } else {
 #         wizlist(0);
 #         push_number(0);
@@ -1747,14 +1729,14 @@
 #     {
 #     struct object *dest;
 # 
-#     if (sp->type == T_STRING) {
-#         dest = find_object(sp->u.string);
+#     if (sp.type == T_STRING) {
+#         dest = find_object(sp.u.string);
 #         if (dest == 0)
 #         error("Object not found.\n");
 #     } else {
-#         dest = sp->u.ob;
+#         dest = sp.u.ob;
 #     }
-#     i = transfer_object((sp-1)->u.ob, dest);
+#     i = transfer_object((sp-1).u.ob, dest);
 #     pop_n_elems(2);
 #     push_number(i);
 #     break;
@@ -1762,252 +1744,252 @@
 # #endif
 # #ifdef F_ADD_WORTH
 #     CASE(F_ADD_WORTH);
-#     if (strncmp(current_object->name, "obj/", 4) != 0 &&
-#         strncmp(current_object->name, "std/", 4) != 0 &&
-#         strncmp(current_object->name, "room/", 5) != 0)
+#     if (strncmp(current_object.name, "obj/", 4) != 0 and
+#         strncmp(current_object.name, "std/", 4) != 0 and
+#         strncmp(current_object.name, "room/", 5) != 0)
 #         error("Illegal call of add_worth.\n");
 #     if (num_arg == 2) {
-#         if (sp->u.ob->user)
-#         sp->u.ob->user->total_worth += (sp-1)->u.number;
+#         if (sp.u.ob.user)
+#         sp.u.ob.user.total_worth += (sp-1).u.number;
 #         pop_stack();
 #     } else {
 #         if (previous_ob == 0)
 #         break;
-#         if (previous_ob->user)
-#         previous_ob->user->total_worth += sp->u.number;
+#         if (previous_ob.user)
+#         previous_ob.user.total_worth += sp.u.number;
 #     }
 #     break;
 # #endif /* F_ADD_WORTH */
 #     CASE(F_ADD);
 # /*if (inadd==0) checkplus(p);*/
-#     if ((sp-1)->type == T_STRING && sp->type == T_STRING) {
+#     if ((sp-1).type == T_STRING and sp.type == T_STRING) {
 #         char *res;
-#         int l = strlen((sp-1)->u.string);
-#         res = xalloc(l + strlen(sp->u.string) + 1);
-#         (void)strcpy(res, (sp-1)->u.string);
-#         (void)strcpy(res+l, sp->u.string);
+#         int l = strlen((sp-1).u.string);
+#         res = xalloc(l + strlen(sp.u.string) + 1);
+#         (void)strcpy(res, (sp-1).u.string);
+#         (void)strcpy(res+l, sp.u.string);
 #         pop_n_elems(2);
 #         push_malloced_string(res);
-#     } else if ((sp-1)->type == T_NUMBER && sp->type == T_STRING) {
+#     } else if ((sp-1).type == T_NUMBER and sp.type == T_STRING) {
 #         char buff[20], *res;
-#         sprintf(buff, "%d", (sp-1)->u.number);
-#         res = xalloc(strlen(sp->u.string) + strlen(buff) + 1);
+#         sprintf(buff, "%d", (sp-1).u.number);
+#         res = xalloc(strlen(sp.u.string) + strlen(buff) + 1);
 #         strcpy(res, buff);
-#         strcat(res, sp->u.string);
+#         strcat(res, sp.u.string);
 #         pop_n_elems(2);
 #         push_malloced_string(res);
-#     } else if (sp->type == T_NUMBER && (sp-1)->type == T_STRING) {
+#     } else if (sp.type == T_NUMBER and (sp-1).type == T_STRING) {
 #         char buff[20];
 #         char *res;
-#         sprintf(buff, "%d", sp->u.number);
-#         res = xalloc(strlen((sp-1)->u.string) + strlen(buff) + 1);
-#         strcpy(res, (sp-1)->u.string);
+#         sprintf(buff, "%d", sp.u.number);
+#         res = xalloc(strlen((sp-1).u.string) + strlen(buff) + 1);
+#         strcpy(res, (sp-1).u.string);
 #         strcat(res, buff);
 #         pop_n_elems(2);
 #         push_malloced_string(res);
-#     } else if ((sp-1)->type == T_NUMBER && sp->type == T_NUMBER) {
-#         i = sp->u.number + (sp-1)->u.number;
+#     } else if ((sp-1).type == T_NUMBER and sp.type == T_NUMBER) {
+#         i = sp.u.number + (sp-1).u.number;
 #         sp--;
-#         sp->u.number = i;
-#     } else if ((sp-1)->type == T_POINTER && sp->type == T_POINTER) {
+#         sp.u.number = i;
+#     } else if ((sp-1).type == T_POINTER and sp.type == T_POINTER) {
 #         struct vector *v;
-#         check_for_destr((sp-1)->u.vec);
-#         check_for_destr(sp->u.vec);
-#         v = add_array((sp-1)->u.vec,sp->u.vec);
+#         check_for_destr((sp-1).u.vec);
+#         check_for_destr(sp.u.vec);
+#         v = add_array((sp-1).u.vec,sp.u.vec);
 #         pop_n_elems(2);
 #         push_vector(v); /* This will make ref count == 2 */
-#         v->ref--;
+#         v.ref--;
 #     } else {
 #         error("Bad type of arg to '+'\n");
 #     }
 #     break;
 #     CASE(F_SUBTRACT);
-#     if ((sp-1)->type == T_POINTER && sp->type == T_POINTER) {
+#     if ((sp-1).type == T_POINTER and sp.type == T_POINTER) {
 #         extern struct vector *subtract_array
 #           PROT((struct vector *,struct vector*));
 #         struct vector *v;
 # 
-#         v = sp->u.vec;
-#         if (v->ref > 1) {
-#         v = slice_array(v, 0, v->size-1 );
-#         v->ref--;
+#         v = sp.u.vec;
+#         if (v.ref > 1) {
+#         v = slice_array(v, 0, v.size-1 );
+#         v.ref--;
 #             }
 #         sp--;
 #         /* subtract_array already takes care of destructed objects */
-#         v = subtract_array(sp->u.vec, v);
-#         free_vector(sp->u.vec);
-#         sp->u.vec = v;
+#         v = subtract_array(sp.u.vec, v);
+#         free_vector(sp.u.vec);
+#         sp.u.vec = v;
 #         break;
 #     }
-#     if ((sp-1)->type != T_NUMBER)
+#     if ((sp-1).type != T_NUMBER)
 #         bad_arg(1, F_SUBTRACT);
-#     if (sp->type != T_NUMBER)
+#     if (sp.type != T_NUMBER)
 #         bad_arg(2, F_SUBTRACT);
-#     i = (sp-1)->u.number - sp->u.number;
+#     i = (sp-1).u.number - sp.u.number;
 #     sp--;
-#     sp->u.number = i;
+#     sp.u.number = i;
 #     break;
 #     CASE(F_AND);
-#     if (sp->type == T_POINTER && (sp-1)->type == T_POINTER) {
+#     if (sp.type == T_POINTER and (sp-1).type == T_POINTER) {
 #         extern struct vector *intersect_array
 #           PROT((struct vector *, struct vector *));
-#         (sp-1)->u.vec = intersect_array(sp->u.vec, (sp-1)->u.vec);
+#         (sp-1).u.vec = intersect_array(sp.u.vec, (sp-1).u.vec);
 #         sp--;
 #         break;
 #     }
-#     if ((sp-1)->type != T_NUMBER)
+#     if ((sp-1).type != T_NUMBER)
 #         bad_arg(1, F_AND);
-#     if (sp->type != T_NUMBER)
+#     if (sp.type != T_NUMBER)
 #         bad_arg(2, F_AND);
-#     i = (sp-1)->u.number & sp->u.number;
+#     i = (sp-1).u.number & sp.u.number;
 #     sp--;
-#     sp->u.number = i;
+#     sp.u.number = i;
 #     break;
 #     CASE(F_OR);
-#     if ((sp-1)->type != T_NUMBER)
+#     if ((sp-1).type != T_NUMBER)
 #         bad_arg(1, F_OR);
-#     if (sp->type != T_NUMBER)
+#     if (sp.type != T_NUMBER)
 #         bad_arg(2, F_OR);
-#     i = (sp-1)->u.number | sp->u.number;
+#     i = (sp-1).u.number | sp.u.number;
 #     sp--;
-#     sp->u.number = i;
+#     sp.u.number = i;
 #     break;
 #     CASE(F_XOR);
-#     if ((sp-1)->type != T_NUMBER)
+#     if ((sp-1).type != T_NUMBER)
 #         bad_arg(1, instruction);
-#     if (sp->type != T_NUMBER)
+#     if (sp.type != T_NUMBER)
 #         bad_arg(2, instruction);
-#     i = (sp-1)->u.number ^ sp->u.number;
+#     i = (sp-1).u.number ^ sp.u.number;
 #     sp--;
-#     sp->u.number = i;
+#     sp.u.number = i;
 #     break;
 #     CASE(F_LSH);
-#     if ((sp-1)->type != T_NUMBER)
+#     if ((sp-1).type != T_NUMBER)
 #         bad_arg(1, instruction);
-#     if (sp->type != T_NUMBER)
+#     if (sp.type != T_NUMBER)
 #         bad_arg(2, instruction);
-#     i = (sp-1)->u.number << sp->u.number;
+#     i = (sp-1).u.number << sp.u.number;
 #     sp--;
-#     sp->u.number = i;
+#     sp.u.number = i;
 #     break;
 #     CASE(F_RSH);
-#     if ((sp-1)->type != T_NUMBER)
+#     if ((sp-1).type != T_NUMBER)
 #         bad_arg(1, instruction);
-#     if (sp->type != T_NUMBER)
+#     if (sp.type != T_NUMBER)
 #         bad_arg(2, instruction);
-#     i = (sp-1)->u.number >> sp->u.number;
+#     i = (sp-1).u.number >> sp.u.number;
 #     sp--;
-#     sp->u.number = i;
+#     sp.u.number = i;
 #     break;
 #     CASE(F_MULTIPLY);
-#     if ((sp-1)->type != T_NUMBER)
+#     if ((sp-1).type != T_NUMBER)
 #         bad_arg(1, instruction);
-#     if (sp->type != T_NUMBER)
+#     if (sp.type != T_NUMBER)
 #         bad_arg(2, instruction);
-#     i = (sp-1)->u.number * sp->u.number;
+#     i = (sp-1).u.number * sp.u.number;
 #     sp--;
-#     sp->u.number = i;
+#     sp.u.number = i;
 #     break;
 #     CASE(F_DIVIDE);
-#     if ((sp-1)->type != T_NUMBER)
+#     if ((sp-1).type != T_NUMBER)
 #         bad_arg(1, instruction);
-#     if (sp->type != T_NUMBER)
+#     if (sp.type != T_NUMBER)
 #         bad_arg(2, instruction);
-#     if (sp->u.number == 0)
+#     if (sp.u.number == 0)
 #         error("Division by zero\n");
-#     i = (sp-1)->u.number / sp->u.number;
+#     i = (sp-1).u.number / sp.u.number;
 #     sp--;
-#     sp->u.number = i;
+#     sp.u.number = i;
 #     break;
 #     CASE(F_MOD);
-#     if ((sp-1)->type != T_NUMBER)
+#     if ((sp-1).type != T_NUMBER)
 #         bad_arg(1, instruction);
-#     if (sp->type != T_NUMBER)
+#     if (sp.type != T_NUMBER)
 #         bad_arg(2, instruction);
-#     if (sp->u.number == 0)
+#     if (sp.u.number == 0)
 #         error("Modulus by zero.\n");
-#     i = (sp-1)->u.number % sp->u.number;
+#     i = (sp-1).u.number % sp.u.number;
 #     sp--;
-#     sp->u.number = i;
+#     sp.u.number = i;
 #     break;
 #     CASE(F_GT);
-#     if ((sp-1)->type == T_STRING && sp->type == T_STRING) {
-#         i = strcmp((sp-1)->u.string, sp->u.string) > 0;
+#     if ((sp-1).type == T_STRING and sp.type == T_STRING) {
+#         i = strcmp((sp-1).u.string, sp.u.string) > 0;
 #         pop_n_elems(2);
 #         push_number(i);
 #         break;
 #     }
-#     if ((sp-1)->type != T_NUMBER)
+#     if ((sp-1).type != T_NUMBER)
 #         bad_arg(1, instruction);
-#     if (sp->type != T_NUMBER)
+#     if (sp.type != T_NUMBER)
 #         bad_arg(2, instruction);
-#     i = (sp-1)->u.number > sp->u.number;
+#     i = (sp-1).u.number > sp.u.number;
 #     sp--;
-#     sp->u.number = i;
+#     sp.u.number = i;
 #     break;
 #     CASE(F_GE);
-#     if ((sp-1)->type == T_STRING && sp->type == T_STRING) {
-#         i = strcmp((sp-1)->u.string, sp->u.string) >= 0;
+#     if ((sp-1).type == T_STRING and sp.type == T_STRING) {
+#         i = strcmp((sp-1).u.string, sp.u.string) >= 0;
 #         pop_n_elems(2);
 #         push_number(i);
 #         break;
 #     }
-#     if ((sp-1)->type != T_NUMBER)
+#     if ((sp-1).type != T_NUMBER)
 #         bad_arg(1, instruction);
-#     if (sp->type != T_NUMBER)
+#     if (sp.type != T_NUMBER)
 #         bad_arg(2, instruction);
-#     i = (sp-1)->u.number >= sp->u.number;
+#     i = (sp-1).u.number >= sp.u.number;
 #     sp--;
-#     sp->u.number = i;
+#     sp.u.number = i;
 #     break;
 #     CASE(F_LT);
-#     if ((sp-1)->type == T_STRING && sp->type == T_STRING) {
-#         i = strcmp((sp-1)->u.string, sp->u.string) < 0;
+#     if ((sp-1).type == T_STRING and sp.type == T_STRING) {
+#         i = strcmp((sp-1).u.string, sp.u.string) < 0;
 #         pop_n_elems(2);
 #         push_number(i);
 #         break;
 #     }
-#     if ((sp-1)->type != T_NUMBER)
+#     if ((sp-1).type != T_NUMBER)
 #         bad_arg(1, instruction);
-#     if (sp->type != T_NUMBER)
+#     if (sp.type != T_NUMBER)
 #         bad_arg(2, instruction);
-#     i = (sp-1)->u.number < sp->u.number;
+#     i = (sp-1).u.number < sp.u.number;
 #     sp--;
-#     sp->u.number = i;
+#     sp.u.number = i;
 #     break;
 #     CASE(F_LE);
-#     if ((sp-1)->type == T_STRING && sp->type == T_STRING) {
-#         i = strcmp((sp-1)->u.string, sp->u.string) <= 0;
+#     if ((sp-1).type == T_STRING and sp.type == T_STRING) {
+#         i = strcmp((sp-1).u.string, sp.u.string) <= 0;
 #         pop_n_elems(2);
 #         push_number(i);
 #         break;
 #     }
-#     if ((sp-1)->type != T_NUMBER)
+#     if ((sp-1).type != T_NUMBER)
 #         bad_arg(1, instruction);
-#     if (sp->type != T_NUMBER)
+#     if (sp.type != T_NUMBER)
 #         bad_arg(2, instruction);
-#     i = (sp-1)->u.number <= sp->u.number;
+#     i = (sp-1).u.number <= sp.u.number;
 #     sp--;
-#     sp->u.number = i;
+#     sp.u.number = i;
 #     break;
 #     CASE(F_EQ);
-#     if ((sp-1)->type != sp->type) {
+#     if ((sp-1).type != sp.type) {
 #         pop_stack();
 #         assign_svalue(sp, &const0);
 #         break;
 #     }
-#     switch(sp->type) {
+#     switch(sp.type) {
 #     case T_NUMBER:
-#         i = (sp-1)->u.number == sp->u.number;
+#         i = (sp-1).u.number == sp.u.number;
 #         break;
 #     case T_POINTER:
-#         i = (sp-1)->u.vec == sp->u.vec;
+#         i = (sp-1).u.vec == sp.u.vec;
 #         break;
 #     case T_STRING:
-#         i = strcmp((sp-1)->u.string, sp->u.string) == 0;
+#         i = strcmp((sp-1).u.string, sp.u.string) == 0;
 #         break;
 #     case T_OBJECT:
-#         i = (sp-1)->u.ob == sp->u.ob;
+#         i = (sp-1).u.ob == sp.u.ob;
 #         break;
 #     default:
 #         i = 0;
@@ -2017,23 +1999,23 @@
 #     push_number(i);
 #     break;
 #     CASE(F_NE);
-#     if ((sp-1)->type != sp->type) {
+#     if ((sp-1).type != sp.type) {
 #         pop_stack();
 #         assign_svalue(sp, &const1);
 #         break;
 #     }
-#     switch(sp->type) {
+#     switch(sp.type) {
 #     case T_NUMBER:
-#         i = (sp-1)->u.number != sp->u.number;
+#         i = (sp-1).u.number != sp.u.number;
 #         break;
 #     case T_STRING:
-#         i = strcmp((sp-1)->u.string, sp->u.string);
+#         i = strcmp((sp-1).u.string, sp.u.string);
 #         break;
 #     case T_POINTER:
-#         i = (sp-1)->u.vec != sp->u.vec;
+#         i = (sp-1).u.vec != sp.u.vec;
 #         break;
 #     case T_OBJECT:
-#         i = (sp-1)->u.ob != sp->u.ob;
+#         i = (sp-1).u.ob != sp.u.ob;
 #         break;
 #     default:
 #         fatal("Illegal type to !=\n");
@@ -2043,59 +2025,59 @@
 #     break;
 # #ifdef F_LOG_FILE
 #     CASE(F_LOG_FILE);
-#     log_file((sp-1)->u.string, sp->u.string);
+#     log_file((sp-1).u.string, sp.u.string);
 #     pop_stack();
 #     break;    /* Return first argument */
 # #endif /* F_LOG_FILE */
 #     CASE(F_NOT);
-#     if (sp->type == T_NUMBER && sp->u.number == 0)
-#         sp->u.number = 1;
+#     if (sp.type == T_NUMBER and sp.u.number == 0)
+#         sp.u.number = 1;
 #     else
 #         assign_svalue(sp, &const0);
 #     break;
 #     CASE(F_COMPL);
-#     if (sp->type != T_NUMBER)
+#     if (sp.type != T_NUMBER)
 #         error("Bad argument to ~\n");
-#     sp->u.number = ~ sp->u.number;
+#     sp.u.number = ~ sp.u.number;
 #     break;
 #     CASE(F_NEGATE);
-#     if (sp->type != T_NUMBER)
+#     if (sp.type != T_NUMBER)
 #         error("Bad argument to unary minus\n");
-#     sp->u.number = - sp->u.number;
+#     sp.u.number = - sp.u.number;
 #     break;
 #     CASE(F_INC);
-#     if (sp->type != T_LVALUE)
+#     if (sp.type != T_LVALUE)
 #         error("Bad argument to ++\n");
-#     if (sp->u.lvalue->type != T_NUMBER)
+#     if (sp.u.lvalue.type != T_NUMBER)
 #         error("++ of non-numeric argument\n");
-#     sp->u.lvalue->u.number++;
-#     assign_svalue(sp, sp->u.lvalue);
+#     sp.u.lvalue.u.number++;
+#     assign_svalue(sp, sp.u.lvalue);
 #     break;
 #     CASE(F_DEC);
-#     if (sp->type != T_LVALUE)
+#     if (sp.type != T_LVALUE)
 #         error("Bad argument to --\n");
-#     if (sp->u.lvalue->type != T_NUMBER)
+#     if (sp.u.lvalue.type != T_NUMBER)
 #         error("-- of non-numeric argument\n");
-#     sp->u.lvalue->u.number--;
-#     assign_svalue(sp, sp->u.lvalue);
+#     sp.u.lvalue.u.number--;
+#     assign_svalue(sp, sp.u.lvalue);
 #     break;
 #     CASE(F_POST_INC);
-#     if (sp->type != T_LVALUE)
+#     if (sp.type != T_LVALUE)
 #         error("Bad argument to ++\n");
-#     if (sp->u.lvalue->type != T_NUMBER)
+#     if (sp.u.lvalue.type != T_NUMBER)
 #         error("++ of non-numeric argument\n");
-#     sp->u.lvalue->u.number++;
-#     assign_svalue(sp, sp->u.lvalue);
-#     sp->u.number--;
+#     sp.u.lvalue.u.number++;
+#     assign_svalue(sp, sp.u.lvalue);
+#     sp.u.number--;
 #     break;
 #     CASE(F_POST_DEC);
-#     if (sp->type != T_LVALUE)
+#     if (sp.type != T_LVALUE)
 #         error("Bad argument to --\n");
-#     if (sp->u.lvalue->type != T_NUMBER)
+#     if (sp.u.lvalue.type != T_NUMBER)
 #         error("-- of non-numeric argument\n");
-#     sp->u.lvalue->u.number--;
-#     assign_svalue(sp, sp->u.lvalue);
-#     sp->u.number++;
+#     sp.u.lvalue.u.number--;
+#     assign_svalue(sp, sp.u.lvalue);
+#     sp.u.number++;
 #     break;
 #     CASE(F_CALL_OTHER);
 #     {
@@ -2109,7 +2091,7 @@
 #         if (ob == 0)
 #         error("call_other() failed\n");
 #     }
-#     if (current_object->flags & O_DESTRUCTED) {
+#     if (current_object.flags & O_DESTRUCTED) {
 #         /*
 #          * No external calls may be done when this object is
 #          * destructed.
@@ -2144,25 +2126,25 @@
 #     break;
 #     }
 #     CASE(F_INTP);
-#     if (sp->type == T_NUMBER)
+#     if (sp.type == T_NUMBER)
 #         assign_svalue(sp, &const1);
 #     else
 #         assign_svalue(sp, &const0);
 #     break;
 #     CASE(F_STRINGP);
-#     if (sp->type == T_STRING)
+#     if (sp.type == T_STRING)
 #         assign_svalue(sp, &const1);
 #     else
 #         assign_svalue(sp, &const0);
 #     break;
 #     CASE(F_OBJECTP);
-#     if (sp->type == T_OBJECT)
+#     if (sp.type == T_OBJECT)
 #         assign_svalue(sp, &const1);
 #     else
 #         assign_svalue(sp, &const0);
 #     break;
 #     CASE(F_POINTERP);
-#     if (sp->type == T_POINTER)
+#     if (sp.type == T_POINTER)
 #         assign_svalue(sp, &const1);
 #     else
 #         assign_svalue(sp, &const0);
@@ -2186,7 +2168,7 @@
 #         break;
 #     }
 #     if (num_arg == 2) {
-#         res = string_copy(arg->u.string + from);
+#         res = string_copy(arg.u.string + from);
 #         pop_n_elems(2);
 #         push_malloced_string(res);
 #         break;
@@ -2204,7 +2186,7 @@
 #     if (to >= len)
 #         to = len-1;
 #     if (to == len-1) {
-#         res = string_copy(arg->u.string + from);
+#         res = string_copy(arg.u.string + from);
 #         pop_n_elems(3);
 #         push_malloced_string(res);
 #         break;
@@ -2229,7 +2211,7 @@
 #         pop_n_elems(3);
 #         if (v) {
 #         push_vector(v);
-#         v->ref--;    /* Will make ref count == 1 */
+#         v.ref--;    /* Will make ref count == 1 */
 #         } else {
 #         push_number(0);
 #         }
@@ -2281,7 +2263,7 @@
 #     break;
 #     CASE(F_EXEC);
 # 
-#     i = replace_interactive((sp-1)->u.ob, sp->u.ob, current_prog->name);
+#     i = replace_interactive((sp-1).u.ob, sp.u.ob, current_prog.name);
 #     pop_stack();
 #     pop_stack();
 #     push_number(i);
@@ -2292,7 +2274,7 @@
 #     char *name,*res;
 # 
 #     /* This function now returns a leading '/', except when -o flag */
-#     name = sp->u.ob->name;
+#     name = sp.u.ob.name;
 # #ifdef COMPAT_MODE
 #     res = string_copy(name);
 # #else
@@ -2304,13 +2286,13 @@
 #     }
 #     CASE(F_USERS);
 #     push_vector(users());    /* users() has already set ref count to 1 */
-#     sp->u.vec->ref--;
+#     sp.u.vec.ref--;
 #     break;
 #     CASE(F_CALL_OUT);
 #     {
 #         struct svalue *arg = sp - num_arg + 1;
 # 
-#         if (!(current_object->flags & O_DESTRUCTED))
+#         if (!(current_object.flags & O_DESTRUCTED))
 #         new_call_out(current_object, arg[0].u.string, arg[1].u.number,
 #                  num_arg == 3 ? sp : 0);
 #         pop_n_elems(num_arg);
@@ -2319,15 +2301,15 @@
 #     break;
 #     CASE(F_CALL_OUT_INFO);
 #     push_vector(get_all_call_outs());
-#     sp->u.vec->ref--;    /* Was set to 1 at allocation */
+#     sp.u.vec.ref--;    /* Was set to 1 at allocation */
 #     break;
 #     CASE(F_REMOVE_CALL_OUT);
-#     i = remove_call_out(current_object, sp->u.string);
+#     i = remove_call_out(current_object, sp.u.string);
 #     pop_stack();
 #     push_number(i);
 #     break;
 #     CASE(F_FIND_CALL_OUT);
-#         i = find_call_out(current_object, sp->u.string);
+#         i = find_call_out(current_object, sp.u.string);
 #       pop_stack();
 #     push_number(i);
 #         break;
@@ -2337,7 +2319,7 @@
 #     struct vector *vec;
 #     extern struct vector *inherit_list PROT((struct object *));
 # 
-#     vec = inherit_list(sp->u.ob);
+#     vec = inherit_list(sp.u.ob);
 #     pop_stack();
 #     push_vector(vec);
 #     break;
@@ -2350,34 +2332,34 @@
 #     {
 #     struct vector *v;
 # 
-#     v = sp->u.vec;
+#     v = sp.u.vec;
 #     check_for_destr(v);
-#     for (i=0; i < v->size; i++) {
-#         if (v->item[i].type != (sp-1)->type)
+#     for (i=0; i < v.size; i++) {
+#         if (v.item[i].type != (sp-1).type)
 #         continue;
-#         switch((sp-1)->type) {
+#         switch((sp-1).type) {
 #         case T_STRING:
-#         if (strcmp((sp-1)->u.string, v->item[i].u.string) == 0)
+#         if (strcmp((sp-1).u.string, v.item[i].u.string) == 0)
 #             break;
 #         continue;
 #         case T_POINTER:
-#         if ((sp-1)->u.vec == v->item[i].u.vec)
+#         if ((sp-1).u.vec == v.item[i].u.vec)
 #             break;
 #         continue;
 #         case T_OBJECT:
-#         if ((sp-1)->u.ob == v->item[i].u.ob)
+#         if ((sp-1).u.ob == v.item[i].u.ob)
 #             break;
 #         continue;
 #         case T_NUMBER:
-#         if ((sp-1)->u.number == v->item[i].u.number)
+#         if ((sp-1).u.number == v.item[i].u.number)
 #             break;
 #         continue;
 #         default:
-#         fatal("Bad type to member_array(): %d\n", (sp-1)->type);
+#         fatal("Bad type to member_array(): %d\n", (sp-1).type);
 #         }
 #         break;
 #     }
-#     if (i == v->size)
+#     if (i == v.size)
 #         i = -1;        /* Return -1 for failure */
 #     pop_n_elems(2);
 #     push_number(i);
@@ -2387,17 +2369,17 @@
 #     {
 #     struct object *o1, *o2;
 # 
-#     if ((sp-1)->type == T_OBJECT)
-#         o1 = (sp-1)->u.ob;
+#     if ((sp-1).type == T_OBJECT)
+#         o1 = (sp-1).u.ob;
 #     else {
-#         o1 = find_object((sp-1)->u.string);
+#         o1 = find_object((sp-1).u.string);
 #         if (o1 == 0)
 #         error("move_object failed\n");
 #     }
-#     if (sp->type == T_OBJECT)
-#         o2 = sp->u.ob;
+#     if (sp.type == T_OBJECT)
+#         o2 = sp.u.ob;
 #     else {
-#         o2 = find_object(sp->u.string);
+#         o2 = find_object(sp.u.string);
 #         if (o2 == 0)
 #         error("move_object failed\n");
 #     }
@@ -2409,7 +2391,7 @@
 #     {
 #     char *str, *res;
 # 
-#     str = function_exists((sp-1)->u.string, sp->u.ob);
+#     str = function_exists((sp-1).u.string, sp.u.ob);
 #     pop_n_elems(2);
 #     if (str) {
 # #ifdef COMPAT_MODE
@@ -2430,7 +2412,7 @@
 #      * 0 or an object.
 #      */
 # #ifdef COMPAT_MODE
-#     if (!command_giver || num_arg == 2) {
+#     if (!command_giver or num_arg == 2) {
 #         pop_n_elems (num_arg);
 #         push_number (0);
 #     } else {
@@ -2439,7 +2421,7 @@
 #         push_number(0);
 #         } else {
 #         /* The argument object is returned. */
-#         set_snoop(command_giver, sp->u.ob);
+#         set_snoop(command_giver, sp.u.ob);
 #         }
 #     }
 # #else
@@ -2450,12 +2432,12 @@
 #         ob = 0; /* Do not remove this, it is not 0 by default */
 #         switch (num_arg) {
 #         case 1:
-#         if (new_set_snoop(sp->u.ob, 0))
-#             ob = sp->u.ob;
+#         if (new_set_snoop(sp.u.ob, 0))
+#             ob = sp.u.ob;
 #         break;
 #         case 2:
-#         if (new_set_snoop((sp-1)->u.ob, sp->u.ob))
-#             ob = sp->u.ob;
+#         if (new_set_snoop((sp-1).u.ob, sp.u.ob))
+#             ob = sp.u.ob;
 #         break;
 #         default:
 #         ob = 0;
@@ -2484,22 +2466,22 @@
 #     }
 # #ifdef F_ADD_VERB
 #     CASE(F_ADD_VERB);
-#     add_verb(sp->u.string,0);
+#     add_verb(sp.u.string,0);
 #     break;
 # #endif /* F_ADD_VERB */
 # #ifdef F_ADD_XVERB
 #     CASE(F_ADD_XVERB);
-#        add_verb(sp->u.string,1);
+#        add_verb(sp.u.string,1);
 #     break;
 # #endif /* F_ADD_XVERB */
 #     CASE(F_ALLOCATE);
 #     {
 #     struct vector *v;
 # 
-#     v = allocate_array(sp->u.number);    /* Will have ref count == 1 */
+#     v = allocate_array(sp.u.number);    /* Will have ref count == 1 */
 #     pop_stack();
 #     push_vector(v);
-#     v->ref--;
+#     v.ref--;
 #     break;
 #     }
 #     CASE(F_ED);
@@ -2507,16 +2489,16 @@
 #         struct svalue *arg;
 #         char *err_file;
 # 
-#         if (command_giver == 0 || command_giver->interactive == 0) {
+#         if (command_giver == 0 or command_giver.interactive == 0) {
 #         push_number(0);
 #         break;
 #         }
 #         arg = sapply("query_real_name", command_giver, 0);
-#         if (arg == 0 || arg->type != T_STRING) {
+#         if (arg == 0 or arg.type != T_STRING) {
 #         push_number(0);
 #         break;
 #         }
-#         err_file = get_error_file(arg->u.string);
+#         err_file = get_error_file(arg.u.string);
 #         if (err_file == 0) {
 #         push_number(0);
 #         break;
@@ -2525,12 +2507,12 @@
 #         push_number(1);
 #         break;
 #     } else if (num_arg == 1) {
-#         ed_start(sp->u.string, 0, 0);
+#         ed_start(sp.u.string, 0, 0);
 #     } else {
-#         if (sp->type == T_STRING)
-#             ed_start((sp-1)->u.string, sp->u.string, current_object);
+#         if (sp.type == T_STRING)
+#             ed_start((sp-1).u.string, sp.u.string, current_object);
 #         else
-#         ed_start((sp-1)->u.string, 0 , 0);
+#         ed_start((sp-1).u.string, 0 , 0);
 #         pop_stack();
 #     }
 #     break;
@@ -2541,17 +2523,17 @@
 #     char *choise =
 #         "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789./";
 # 
-#     if (sp->type == T_STRING && strlen(sp->u.string) >= 2) {
-#         salt[0] = sp->u.string[0];
-#         salt[1] = sp->u.string[1];
+#     if (sp.type == T_STRING and strlen(sp.u.string) >= 2) {
+#         salt[0] = sp.u.string[0];
+#         salt[1] = sp.u.string[1];
 #     } else {
 #         salt[0] = choise[random_number(strlen(choise))];
 #         salt[1] = choise[random_number(strlen(choise))];
 #     }
 # #ifdef sun
-#     res = string_copy(_crypt((sp-1)->u.string, salt));
+#     res = string_copy(_crypt((sp-1).u.string, salt));
 # #else
-#     res = string_copy(crypt((sp-1)->u.string, salt));
+#     res = string_copy(crypt((sp-1).u.string, salt));
 # #endif
 #     pop_n_elems(2);
 #     push_malloced_string(res);
@@ -2576,11 +2558,11 @@
 #     destruct_object(sp);
 #     break;
 #     CASE(F_RANDOM);
-#     if (sp->u.number <= 0) {
-#         sp->u.number = 0;
+#     if (sp.u.number <= 0) {
+#         sp.u.number = 0;
 #         break;
 #     }
-#     sp->u.number = random_number(sp->u.number);
+#     sp.u.number = random_number(sp.u.number);
 #     break;
 # #ifdef F_SAY
 #     CASE(F_SAY);
@@ -2603,19 +2585,19 @@
 #         vtmp.v.item[1].type = T_NUMBER; /* will not match any object... */
 #         say(sp, &vtmp.v);
 #     } else {
-#         if ( sp->type == T_POINTER ) {
-#         if (sp->u.vec->ref > 1) {
+#         if ( sp.type == T_POINTER ) {
+#         if (sp.u.vec.ref > 1) {
 #             struct vector *vtmpp =
-#             slice_array(sp->u.vec, 0, sp->u.vec->size-1);
+#             slice_array(sp.u.vec, 0, sp.u.vec.size-1);
 #             say(sp-1, vtmpp);
 #             free_vector(vtmpp);
 #         } else
-#                 say(sp-1, sp->u.vec);
+#                 say(sp-1, sp.u.vec);
 #         } else {
 #             vtmp.v.item[0].type = T_NUMBER;
 #         vtmp.v.item[1].type = T_OBJECT;
-#             vtmp.v.item[1].u.ob = sp->u.ob;
-#         add_ref(sp->u.ob, "say");
+#             vtmp.v.item[1].u.ob = sp.u.ob;
+#         add_ref(sp.u.ob, "say");
 #             say(sp-1, &vtmp.v);
 #         }
 #         pop_stack();
@@ -2639,7 +2621,7 @@
 #     }
 #     if (num_arg == 2) {
 #         avoid = &null_vector;
-#         avoid->ref++;
+#         avoid.ref++;
 #     } else {
 #         extern struct vector *order_alist PROT((struct vector *));
 #         struct vector *vtmpp;
@@ -2654,15 +2636,15 @@
 #         if (arg[2].type != T_POINTER)
 #         bad_arg(3, instruction);
 #         vtmp.item[0].u.vec = arg[2].u.vec;
-#         if (vtmp.item[0].u.vec->ref > 1) {
-#         vtmp.item[0].u.vec->ref--;
+#         if (vtmp.item[0].u.vec.ref > 1) {
+#         vtmp.item[0].u.vec.ref--;
 #         vtmp.item[0].u.vec = slice_array(
-#           vtmp.item[0].u.vec, 0, vtmp.item[0].u.vec->size-1);
+#           vtmp.item[0].u.vec, 0, vtmp.item[0].u.vec.size-1);
 #         }
 #         sp--;
 #         vtmpp = order_alist(&vtmp);
-#         avoid = vtmpp->item[0].u.vec;
-#         vtmpp->item[0].u.vec = vtmp.item[0].u.vec;
+#         avoid = vtmpp.item[0].u.vec;
+#         vtmpp.item[0].u.vec = vtmp.item[0].u.vec;
 #         free_vector(vtmpp);
 #     }
 #     tell_room(ob, sp, avoid);
@@ -2673,7 +2655,7 @@
 # #endif /* F_TELL_ROOM */
 # #ifdef F_SHOUT
 #     CASE(F_SHOUT);
-#     shout_string(sp->u.string);
+#     shout_string(sp.u.string);
 #     break;
 # #endif /* F_SHOUT */
 #     CASE(F_WHILE);
@@ -2697,51 +2679,51 @@
 #     ((char *)&break_adr)[1] = pc[4];
 #     *--break_sp = break_adr;
 #     if ( ( i = EXTRACT_UCHAR(pc) >> 4 ) != 0xf ) {
-#         if ( sp->type == T_NUMBER && !sp->u.number ) {
+#         if ( sp.type == T_NUMBER and !sp.u.number ) {
 #         /* special case: uninitalized string */
 #         s = (int)ZERO_AS_STR_CASE_LABEL;
-#         } else if ( sp->type == T_STRING ) {
-#             switch(sp->string_type) {
+#         } else if ( sp.type == T_STRING ) {
+#             switch(sp.string_type) {
 #             case STRING_SHARED:
-#                 s = (int)sp->u.string;
+#                 s = (int)sp.u.string;
 #                 break;
 #         default:
-#             s = (int)findstring(sp->u.string);
+#             s = (int)findstring(sp.u.string);
 #                 break;
 #             }
 #         } else {
 #         bad_arg(1, F_SWITCH);
 #         }
 #     } else {
-#         if (sp->type != T_NUMBER) bad_arg(1, F_SWITCH);
-#         s = sp->u.number;
+#         if (sp.type != T_NUMBER) bad_arg(1, F_SWITCH);
+#         s = sp.u.number;
 #         i = (int)pc[0] &0xf ;
 #     }
 #     pop_stack();
-#     end_tab = current_prog->program + break_adr;
+#     end_tab = current_prog.program + break_adr;
 #     if ( i >= 14 )
 #     {
 #         if ( i == 14 )
 #         {
 #         /* fastest switch format : lookup table */
-#             l = current_prog->program + offset;
+#             l = current_prog.program + offset;
 #             ((char *)&d)[0] = end_tab[-4];
 #             ((char *)&d)[1] = end_tab[-3];
 #             ((char *)&d)[2] = end_tab[-2];
 #             ((char *)&d)[3] = end_tab[-1];
-#             if ( s >= d && l + (s=(s-d)*sizeof(short)) < end_tab - 4 )
+#             if ( s >= d and l + (s=(s-d)*sizeof(short)) < end_tab - 4 )
 #             {
 #                 ((char *)&offset)[0] = l[s];
 #                 ((char *)&offset)[1] = l[s+1];
 #                 if (offset) {
-#                 pc = current_prog->program + offset;
+#                 pc = current_prog.program + offset;
 #                 break;
 #                 }
 #             }
 #             /* default */
 #             ((char *)&offset)[0] = pc[5];
 #             ((char *)&offset)[1] = pc[6];
-#             pc = current_prog->program + offset;
+#             pc = current_prog.program + offset;
 #             break;
 #         }
 #         else
@@ -2749,7 +2731,7 @@
 #             fatal("unsupported switch table format.\n");
 #         }
 #     }
-#     l = current_prog->program + offset + off_tab[i];
+#     l = current_prog.program + offset + off_tab[i];
 #     d = (off_tab[i]+6) >> 1;
 #     if (d == 3) d=0;
 #     for(;;)
@@ -2776,7 +2758,7 @@
 #                     /* range with lookup table */
 #                                     ((char *)&offset)[0] = l[4];
 #                                     ((char *)&offset)[1] = l[5];
-#                     l = current_prog->program + offset +
+#                     l = current_prog.program + offset +
 #                     (s-r) * sizeof(short);
 #                                     ((char *)&offset)[0] = l[0];
 #                                     ((char *)&offset)[1] = l[1];
@@ -2814,7 +2796,7 @@
 #                     /* range with lookup table */
 #                                     ((char *)&offset)[0] = l[10];
 #                                     ((char *)&offset)[1] = l[11];
-#                     l = current_prog->program + offset +
+#                     l = current_prog.program + offset +
 #                     (s-r) * sizeof(short);
 #                                     ((char *)&offset)[0] = l[0];
 #                                     ((char *)&offset)[1] = l[1];
@@ -2848,13 +2830,13 @@
 #         /* s == r */
 #         ((char *)&offset)[0] = l[4];
 #         ((char *)&offset)[1] = l[5];
-#         if ( !l[-2] && !l[-1] ) {
+#         if ( !l[-2] and !l[-1] ) {
 #             /* end of range with lookup table */
 #             ((char *)&r)[0] = l[-6];
 #             ((char *)&r)[1] = l[-5];
 #             ((char *)&r)[2] = l[-4];
 #             ((char *)&r)[3] = l[-3];
-#             l = current_prog->program + offset + (s-r)*sizeof(short);
+#             l = current_prog.program + offset + (s-r)*sizeof(short);
 #                     ((char *)&offset)[0] = l[0];
 #                     ((char *)&offset)[1] = l[1];
 #         }
@@ -2863,7 +2845,7 @@
 #             /* start of range with lookup table */
 #                         ((char *)&offset)[0] = l[10];
 #                         ((char *)&offset)[1] = l[11];
-#             l = current_prog->program + offset;
+#             l = current_prog.program + offset;
 #                         ((char *)&offset)[0] = l[0];
 #                         ((char *)&offset)[1] = l[1];
 #             } else {
@@ -2874,29 +2856,29 @@
 #         break;
 #         }
 #     }
-#     pc = current_prog->program + offset;
+#     pc = current_prog.program + offset;
 #     break;
 #     }
 #     CASE(F_BREAK);
 #     {
-#     pc = current_prog->program + *break_sp++;
+#     pc = current_prog.program + *break_sp++;
 #     break;
 #     }
 #     CASE(F_SUBSCRIPT);
 #     fatal("F_SUBSCRIPT should not appear.\n");
 #     CASE(F_STRLEN);
-#     i = strlen(sp->u.string);
+#     i = strlen(sp.u.string);
 #     pop_stack();
 #     push_number(i);
 #     break;
 #     CASE(F_SIZEOF);
-#     i = sp->u.vec->size;
+#     i = sp.u.vec.size;
 #     pop_stack();
 #     push_number(i);
 #     break;
 #     CASE(F_LOWER_CASE);
 #     {
-#     char *str = string_copy(sp->u.string);
+#     char *str = string_copy(sp.u.string);
 #     for (i = strlen(str)-1; i>=0; i--)
 #         if (isalpha(str[i]))
 #         str[i] |= 'a' - 'A';
@@ -2905,14 +2887,14 @@
 #     break;
 #     }
 #     CASE(F_SET_HEART_BEAT);
-#     i = set_heart_beat(current_object, sp->u.number);
-#     sp->u.number = i;
+#     i = set_heart_beat(current_object, sp.u.number);
+#     sp.u.number = i;
 #     break;
 #     CASE(F_CAPITALIZE);
-#     if (islower(sp->u.string[0])) {
+#     if (islower(sp.u.string[0])) {
 #         char *str;
 # 
-#         str = string_copy(sp->u.string);
+#         str = string_copy(sp.u.string);
 #         str[0] += 'A' - 'a';
 #         pop_stack();
 #         push_malloced_string(str);
@@ -2925,8 +2907,8 @@
 # 
 #     char *str;
 # 
-#     str = process_string(sp->u.string);
-#     if (str != sp->u.string) {
+#     str = process_string(sp.u.string);
+#     if (str != sp.u.string) {
 #         pop_stack();
 #         push_malloced_string(str);
 #     }
@@ -2950,17 +2932,17 @@
 #     }
 #     CASE(F_GET_DIR);
 #     {
-#     struct vector *v = get_dir(sp->u.string);
+#     struct vector *v = get_dir(sp.u.string);
 #     pop_stack();
 #     if (v) {
 #         push_vector(v);
-#         v->ref--;    /* Will now be 1. */
+#         v.ref--;    /* Will now be 1. */
 #     } else
 #         push_number(0);
 #     break;
 #     }
 #     CASE(F_RM);
-#     i = remove_file(sp->u.string);
+#     i = remove_file(sp.u.string);
 #     pop_stack();
 #     push_number(i);
 #     break;
@@ -2986,12 +2968,12 @@
 #     char *path;
 # 
 # #ifdef COMPAT_MODE
-#     path = check_file_name(sp->u.string, 1);
+#     path = check_file_name(sp.u.string, 1);
 # #else
-#     path = check_valid_path(sp->u.string, current_object->eff_user, "mkdir", 1);
+#     path = check_valid_path(sp.u.string, current_object.eff_user, "mkdir", 1);
 # #endif    
 #     /* pop_stack(); see comment above... */
-#     if (path == 0 || mkdir(path, 0770) == -1)
+#     if (path == 0 or mkdir(path, 0770) == -1)
 #         assign_svalue(sp, &const0);
 #     else
 #         assign_svalue(sp, &const1);
@@ -3002,12 +2984,12 @@
 #     char *path;
 # 
 # #ifdef COMPAT_MODE    
-#     path = check_file_name(sp->u.string, 1);
+#     path = check_file_name(sp.u.string, 1);
 # #else    
-#     path = check_valid_path(sp->u.string, current_object->eff_user, "rmdir", 1);
+#     path = check_valid_path(sp.u.string, current_object.eff_user, "rmdir", 1);
 # #endif    
 #     /* pop_stack(); rw - what the heck ??? */
-#     if (path == 0 || rmdir(path) == -1)
+#     if (path == 0 or rmdir(path) == -1)
 #         assign_svalue(sp, &const0);
 #     else
 #         assign_svalue(sp, &const1);
@@ -3018,7 +3000,7 @@
 #     struct svalue *arg = sp - num_arg + 1;
 #     int flag = 1;
 #     
-#     if (num_arg == 1 || ((sp->type == T_NUMBER) && (sp->u.number == 0)))
+#     if (num_arg == 1 or ((sp.type == T_NUMBER) and (sp.u.number == 0)))
 #         flag = 0;
 #     i = input_to(arg[0].u.string, flag);
 #     pop_n_elems(num_arg);
@@ -3026,7 +3008,7 @@
 #     break;
 #     }
 #     CASE(F_SET_LIVING_NAME);
-#     set_living_name(current_object, sp->u.string);
+#     set_living_name(current_object, sp.u.string);
 #     break;
 #     CASE(F_PARSE_COMMAND);
 #     {
@@ -3037,7 +3019,7 @@
 #     arg = sp - num_arg + 1;
 #     if (arg[0].type != T_STRING)
 #         bad_arg(1, F_PARSE_COMMAND);
-#     if (arg[1].type != T_OBJECT && arg[1].type != T_POINTER)
+#     if (arg[1].type != T_OBJECT and arg[1].type != T_POINTER)
 #         bad_arg(2, F_PARSE_COMMAND);
 #     if (arg[2].type != T_STRING)
 #         bad_arg(3, F_PARSE_COMMAND);
@@ -3081,11 +3063,11 @@
 #     {
 #     struct object *o1;
 # 
-#     add_light(current_object, sp->u.number);
+#     add_light(current_object, sp.u.number);
 #     o1 = current_object;
-#     while(o1->super)
-#         o1 = o1->super;
-#     sp->u.number = o1->total_light;
+#     while(o1.super)
+#         o1 = o1.super;
+#     sp.u.number = o1.total_light;
 #     break;
 #     }
 # #endif /* F_SET_LIGHT */
@@ -3108,14 +3090,14 @@
 #     if (sp[-1].type != T_LVALUE)
 #         fatal("Bad argument to F_ASSIGN\n");
 # #endif
-#     assign_svalue((sp-1)->u.lvalue, sp);
+#     assign_svalue((sp-1).u.lvalue, sp);
 #     assign_svalue(sp-1, sp);
 #     pop_stack();
 #     break;
 #     CASE(F_CTIME);
 #     {
 #     char *cp;
-#     cp = string_copy(time_string(sp->u.number));
+#     cp = string_copy(time_string(sp.u.number));
 #     pop_stack();
 #     push_malloced_string(cp);
 #     /* Now strip the newline. */
@@ -3128,22 +3110,22 @@
 #     if (sp[-1].type != T_LVALUE)
 #         bad_arg(1, F_ADD_EQ);
 #     argp = sp[-1].u.lvalue;
-#     switch(argp->type) {
+#     switch(argp.type) {
 #     case T_STRING:
 #     {
 #         char *new_str;
-#         if (sp->type == T_STRING) {
-#         int l = strlen(argp->u.string);
-#         new_str = xalloc(l + strlen(sp->u.string) + 1);
-#         strcpy(new_str, argp->u.string);
-#         strcpy(new_str+l, sp->u.string);
+#         if (sp.type == T_STRING) {
+#         int l = strlen(argp.u.string);
+#         new_str = xalloc(l + strlen(sp.u.string) + 1);
+#         strcpy(new_str, argp.u.string);
+#         strcpy(new_str+l, sp.u.string);
 #         pop_n_elems(2);
 #         push_malloced_string(new_str);
-#         } else if (sp->type == T_NUMBER) {
+#         } else if (sp.type == T_NUMBER) {
 #         char buff[20];
-#         sprintf(buff, "%d", sp->u.number);
-#         new_str = xalloc(strlen(argp->u.string) + strlen(buff) + 1);
-#         strcpy(new_str, argp->u.string);
+#         sprintf(buff, "%d", sp.u.number);
+#         new_str = xalloc(strlen(argp.u.string) + strlen(buff) + 1);
+#         strcpy(new_str, argp.u.string);
 #         strcat(new_str, buff);
 #         pop_n_elems(2);
 #         push_malloced_string(new_str);
@@ -3153,8 +3135,8 @@
 #         break;
 #     }
 #     case T_NUMBER:
-#         if (sp->type == T_NUMBER) {
-#             i = argp->u.number + sp->u.number;
+#         if (sp.type == T_NUMBER) {
+#             i = argp.u.number + sp.u.number;
 #         pop_n_elems(2);
 #         push_number(i);
 #         } else {
@@ -3162,16 +3144,16 @@
 #         }
 #         break;
 #         case T_POINTER:
-#         if (sp->type != T_POINTER) {
+#         if (sp.type != T_POINTER) {
 #         error("Bad type to rhs +=.\n");
 #         } else {
 #           struct vector *v;
-#           check_for_destr(argp->u.vec);
-#           check_for_destr(sp->u.vec);
-#           v = add_array(argp->u.vec,sp->u.vec);
+#           check_for_destr(argp.u.vec);
+#           check_for_destr(sp.u.vec);
+#           v = add_array(argp.u.vec,sp.u.vec);
 #           pop_n_elems(2);
 #           push_vector(v); /* This will make ref count == 2 */
-#           v->ref--;
+#           v.ref--;
 #         }
 #         break;          
 #     default:
@@ -3183,11 +3165,11 @@
 #     if (sp[-1].type != T_LVALUE)
 #         bad_arg(1, F_SUB_EQ);
 #     argp = sp[-1].u.lvalue;
-#     switch (argp->type) {
+#     switch (argp.type) {
 #     case T_NUMBER:
-#     if (sp->type != T_NUMBER)
+#     if (sp.type != T_NUMBER)
 #             error("Bad right type to -=");
-#         argp->u.number -= sp->u.number;
+#         argp.u.number -= sp.u.number;
 #         sp--;
 #             break;
 #     case T_POINTER:
@@ -3195,17 +3177,17 @@
 #         struct vector *subtract_array PROT((struct vector*,struct vector*));
 #         struct vector *v;
 # 
-#         if (sp->type != T_POINTER)
+#         if (sp.type != T_POINTER)
 #             error("Bad right type to -=");
-#         v = sp->u.vec;
-#         if (v->ref > 1) {
-#         v = slice_array(v, 0, v->size-1 );
-#         v->ref--;
+#         v = sp.u.vec;
+#         if (v.ref > 1) {
+#         v = slice_array(v, 0, v.size-1 );
+#         v.ref--;
 #             }
 #         sp--;
-#         v = subtract_array(argp->u.vec, v);
-#         free_vector(argp->u.vec);
-#         argp->u.vec = v;
+#         v = subtract_array(argp.u.vec, v);
+#         free_vector(argp.u.vec);
+#         argp.u.vec = v;
 #         break;
 #       }
 #     default:
@@ -3217,11 +3199,11 @@
 #     if (sp[-1].type != T_LVALUE)
 #         bad_arg(1, F_MULT_EQ);
 #     argp = sp[-1].u.lvalue;
-#     if (argp->type != T_NUMBER)
+#     if (argp.type != T_NUMBER)
 #         error("Bad left type to *=.\n");
-#     if (sp->type != T_NUMBER)
+#     if (sp.type != T_NUMBER)
 #         error("Bad right type to *=");
-#     i = argp->u.number * sp->u.number;
+#     i = argp.u.number * sp.u.number;
 #     pop_n_elems(2);
 #     push_number(i);
 #     assign_svalue(argp, sp);
@@ -3230,11 +3212,11 @@
 #     if (sp[-1].type != T_LVALUE)
 #         bad_arg(1, F_AND_EQ);
 #     argp = sp[-1].u.lvalue;
-#     if (argp->type != T_NUMBER)
+#     if (argp.type != T_NUMBER)
 #         error("Bad left type to &=.\n");
-#     if (sp->type != T_NUMBER)
+#     if (sp.type != T_NUMBER)
 #         error("Bad right type to &=");
-#     i = argp->u.number & sp->u.number;
+#     i = argp.u.number & sp.u.number;
 #     pop_n_elems(2);
 #     push_number(i);
 #     assign_svalue(argp, sp);
@@ -3246,11 +3228,11 @@
 #     if (sp[-1].type != T_LVALUE)
 #         bad_arg(1, F_OR_EQ);
 #     argp = sp[-1].u.lvalue;
-#     if (argp->type != T_NUMBER)
+#     if (argp.type != T_NUMBER)
 #         error("Bad left type to |=.\n");
-#     if (sp->type != T_NUMBER)
+#     if (sp.type != T_NUMBER)
 #         error("Bad right type to |=");
-#     i = argp->u.number | sp->u.number;
+#     i = argp.u.number | sp.u.number;
 #     pop_n_elems(2);
 #     push_number(i);
 #     assign_svalue(argp, sp);
@@ -3259,11 +3241,11 @@
 #     if (sp[-1].type != T_LVALUE)
 #         bad_arg(1, F_XOR_EQ);
 #     argp = sp[-1].u.lvalue;
-#     if (argp->type != T_NUMBER)
+#     if (argp.type != T_NUMBER)
 #         error("Bad left type to ^=.\n");
-#     if (sp->type != T_NUMBER)
+#     if (sp.type != T_NUMBER)
 #         error("Bad right type to ^=");
-#     i = argp->u.number ^ sp->u.number;
+#     i = argp.u.number ^ sp.u.number;
 #     pop_n_elems(2);
 #     push_number(i);
 #     assign_svalue(argp, sp);
@@ -3272,11 +3254,11 @@
 #     if (sp[-1].type != T_LVALUE)
 #         bad_arg(1, F_LSH_EQ);
 #     argp = sp[-1].u.lvalue;
-#     if (argp->type != T_NUMBER)
+#     if (argp.type != T_NUMBER)
 #         error("Bad left type to <<=.\n");
-#     if (sp->type != T_NUMBER)
+#     if (sp.type != T_NUMBER)
 #         error("Bad right type to <<=");
-#     i = argp->u.number << sp->u.number;
+#     i = argp.u.number << sp.u.number;
 #     pop_n_elems(2);
 #     push_number(i);
 #     assign_svalue(argp, sp);
@@ -3285,11 +3267,11 @@
 #     if (sp[-1].type != T_LVALUE)
 #         bad_arg(1, F_RSH_EQ);
 #     argp = sp[-1].u.lvalue;
-#     if (argp->type != T_NUMBER)
+#     if (argp.type != T_NUMBER)
 #         error("Bad left type to >>=.\n");
-#     if (sp->type != T_NUMBER)
+#     if (sp.type != T_NUMBER)
 #         error("Bad right type to >>=");
-#     i = argp->u.number >> sp->u.number;
+#     i = argp.u.number >> sp.u.number;
 #     pop_n_elems(2);
 #     push_number(i);
 #     assign_svalue(argp, sp);
@@ -3307,13 +3289,13 @@
 #     if (sp[-1].type != T_LVALUE)
 #         bad_arg(1, F_DIV_EQ);
 #     argp = sp[-1].u.lvalue;
-#     if (argp->type != T_NUMBER)
+#     if (argp.type != T_NUMBER)
 #         error("Bad left type to /=.\n");
-#     if (sp->type != T_NUMBER)
+#     if (sp.type != T_NUMBER)
 #         error("Bad right type to /=");
-#     if (sp->u.number == 0)
+#     if (sp.u.number == 0)
 #         error("Division by 0\n");
-#     i = argp->u.number / sp->u.number;
+#     i = argp.u.number / sp.u.number;
 #     pop_n_elems(2);
 #     push_number(i);
 #     assign_svalue(argp, sp);
@@ -3322,13 +3304,13 @@
 #     if (sp[-1].type != T_LVALUE)
 #         bad_arg(1, F_MOD_EQ);
 #     argp = sp[-1].u.lvalue;
-#     if (argp->type != T_NUMBER)
+#     if (argp.type != T_NUMBER)
 #         error("Bad left type to %=.\n");
-#     if (sp->type != T_NUMBER)
+#     if (sp.type != T_NUMBER)
 #         error("Bad right type to %=");
-#     if (sp->u.number == 0)
+#     if (sp.u.number == 0)
 #         error("Division by 0\n");
-#     i = argp->u.number % sp->u.number;
+#     i = argp.u.number % sp.u.number;
 #     pop_n_elems(2);
 #     push_number(i);
 #     assign_svalue(argp, sp);
@@ -3339,7 +3321,7 @@
 #     ((char *)&string_number)[0] = pc[0];
 #     ((char *)&string_number)[1] = pc[1];
 #     pc += 2;
-#     push_string(current_prog->strings[string_number],
+#     push_string(current_prog.strings[string_number],
 #             STRING_CONSTANT);
 #     break;
 #     }
@@ -3377,9 +3359,9 @@
 #     char *path;
 # 
 # #ifdef COMPAT_MODE
-#     path = check_file_name(sp->u.string, 1);
+#     path = check_file_name(sp.u.string, 1);
 # #else
-#     path = check_valid_path(sp->u.string, current_object->eff_user, "cindent", 1);
+#     path = check_valid_path(sp.u.string, current_object.eff_user, "cindent", 1);
 # #endif
 #     if (path) {
 #         if (indent_program(path)) {
@@ -3399,11 +3381,11 @@
 # 
 #     if (num_arg < 3) live = 0;
 #     else {
-#         if (sp->type != T_NUMBER) bad_arg (3, F_DESCRIBE);
-#         live = sp->u.number;
+#         if (sp.type != T_NUMBER) bad_arg (3, F_DESCRIBE);
+#         live = sp.u.number;
 #         pop_stack ();
 #     }
-#     str = describe_items(sp-1, sp->u.string, live);
+#     str = describe_items(sp-1, sp.u.string, live);
 #     pop_n_elems(2);
 #     if (str) push_malloced_string (string_copy (str));
 #     else     push_number(0);
@@ -3416,17 +3398,17 @@
 #     struct vector *res;
 # 
 #     if (num_arg < 3) {
-#         check_for_destr((sp-1)->u.vec);
-#         res = make_unique((sp-1)->u.vec, sp->u.string, &const0);
+#         check_for_destr((sp-1).u.vec);
+#         res = make_unique((sp-1).u.vec, sp.u.string, &const0);
 #     } else {
-#         check_for_destr((sp-2)->u.vec);
-#         res = make_unique((sp-2)->u.vec, (sp-1)->u.string, sp);
+#         check_for_destr((sp-2).u.vec);
+#         res = make_unique((sp-2).u.vec, (sp-1).u.string, sp);
 #         pop_stack ();
 #     }
 #     pop_n_elems(2);
 #     if (res) {
 #         push_vector (res);    /* This will make ref count == 2 */
-#         res->ref--;
+#         res.ref--;
 #     } else
 #         push_number (0);
 #     break;
@@ -3439,7 +3421,7 @@
 #     }
 # #ifdef F_RENAME
 #     CASE(F_RENAME); {
-#     i = do_rename((sp-1)->u.string, sp->u.string);
+#     i = do_rename((sp-1).u.string, sp.u.string);
 #     pop_n_elems(2);
 #     push_number(i);
 #     break;
@@ -3469,7 +3451,7 @@
 #     pop_n_elems (num_arg);
 #     if (res) {
 #         push_vector (res);    /* This will make ref count == 2 */
-#         res->ref--;
+#         res.ref--;
 #     } else
 #         push_number (0);
 #     break;
@@ -3493,15 +3475,15 @@
 #     if (arg[0].type == T_POINTER) {
 #         /* sort_array already takes care of destructed objects */
 #         res = sort_array (
-#           slice_array(arg[0].u.vec, 0, arg[0].u.vec->size-1),
+#           slice_array(arg[0].u.vec, 0, arg[0].u.vec.size-1),
 #           arg[1].u.string, ob);
 #     } else
 #         res = 0;
 #     pop_n_elems (3);
 #     sp++;
 #     if (res) {
-#         sp->type = T_POINTER;
-#         sp->u.vec = res;
+#         sp.type = T_POINTER;
+#         sp.u.vec = res;
 #     }
 #     else     *sp = const0;
 #     break;
@@ -3514,29 +3496,29 @@
 #     struct vector *list;
 #     int listsize,keynum;
 # 
-#     if (num_arg == 1 && sp->u.vec->size 
-#           && sp->u.vec->item[0].type == T_POINTER) {
-#             args     = sp->u.vec->item;
-#         listsize = sp->u.vec->size;
+#     if (num_arg == 1 and sp.u.vec.size 
+#           and sp.u.vec.item[0].type == T_POINTER) {
+#             args     = sp.u.vec.item;
+#         listsize = sp.u.vec.size;
 #     } else {
 #         args = sp-num_arg+1;
 #         listsize = num_arg;
 #     }
-#     keynum = args[0].u.vec->size;
+#     keynum = args[0].u.vec.size;
 #     list = allocate_array(listsize);
 #     for (i=0; i<listsize; i++) {
 #         if (args[i].type != T_POINTER
-#          || args[i].u.vec->size != keynum) {
+#          or args[i].u.vec.size != keynum) {
 #         free_vector(list);
 #         error("bad data array %d in call to order_alist",i);
 #         }
-#         list->item[i].type = T_POINTER;
-#         list->item[i].u.vec = slice_array(args[i].u.vec,0,keynum-1);
+#         list.item[i].type = T_POINTER;
+#         list.item[i].u.vec = slice_array(args[i].u.vec,0,keynum-1);
 #         }
 #         pop_n_elems(num_arg);
 #     sp++;
-#     sp->type = T_POINTER;
-#         sp->u.vec = order_alist(list);
+#     sp.type = T_POINTER;
+#         sp.u.vec = order_alist(list);
 #     free_vector(list);
 #         break;
 #     }
@@ -3556,19 +3538,19 @@
 #     struct svalue *key,*key_data,*ret;
 #     static struct vector tempvec = { 1,1, };
 # 
-#     if (sp->type != T_POINTER)
+#     if (sp.type != T_POINTER)
 #         bad_arg(num_arg,F_INSERT_ALIST);
-#     if ( !(listsize = sp->u.vec->size) ||
-#       sp->u.vec->item[0].type != T_POINTER ) {
+#     if ( !(listsize = sp.u.vec.size) or
+#       sp.u.vec.item[0].type != T_POINTER ) {
 #         list = &tempvec;
-#         assign_svalue_no_free(list->item,sp);
+#         assign_svalue_no_free(list.item,sp);
 #         listsize = 1;
 #     } else
-#         list = sp->u.vec;
-#     keynum = list->item[0].u.vec->size;
+#         list = sp.u.vec;
+#     keynum = list.item[0].u.vec.size;
 #     for (i=1; i<listsize; i++) {
-#         if (list->item[i].type != T_POINTER
-#           ||list->item[i].u.vec->size != keynum)
+#         if (list.item[i].type != T_POINTER
+#           orlist.item[i].u.vec.size != keynum)
 #         bad_arg(num_arg,F_INSERT_ALIST);
 #     }
 #     if (num_arg == 2) {
@@ -3576,9 +3558,9 @@
 #         key_data = (struct svalue*)NULL;
 #         key = sp-1;
 #         } else {
-#             if (sp[-1].u.vec->size != listsize)
+#             if (sp[-1].u.vec.size != listsize)
 #             bad_arg(1,F_INSERT_ALIST);
-#             key_data = key = sp[-1].u.vec->item;
+#             key_data = key = sp[-1].u.vec.item;
 #         }
 #     } else {
 #         if (num_arg - 1 != listsize)
@@ -3605,14 +3587,14 @@
 #     struct svalue *fail_val;
 #     int ix;
 # 
-#     if ( !args[1].u.vec->size ||
-#       args[1].u.vec->item[0].type != T_POINTER ) {
+#     if ( !args[1].u.vec.size or
+#       args[1].u.vec.item[0].type != T_POINTER ) {
 #         keys = args[1].u.vec;
 #         if (num_arg == 2) {
 #         data = (struct vector *)NULL;
 #         } else {
-#         if (args[2].type != T_POINTER ||
-#           args[2].u.vec->size != keys->size) {
+#         if (args[2].type != T_POINTER or
+#           args[2].u.vec.size != keys.size) {
 #             bad_arg(3,F_ASSOC);
 #         }
 #         data = args[2].u.vec;
@@ -3623,13 +3605,13 @@
 #         fail_val = &const0;
 #         }
 #     } else {
-#         keys = args[1].u.vec->item[0].u.vec;
-#         if (args[1].u.vec->size > 1) {
-#         if (args[1].u.vec->item[1].type != T_POINTER ||
-#             args[1].u.vec->item[1].u.vec->size != keys->size) {
+#         keys = args[1].u.vec.item[0].u.vec;
+#         if (args[1].u.vec.size > 1) {
+#         if (args[1].u.vec.item[1].type != T_POINTER or
+#             args[1].u.vec.item[1].u.vec.size != keys.size) {
 #             bad_arg(2,F_ASSOC);
 #             }
-#         data = args[1].u.vec->item[1].u.vec;
+#         data = args[1].u.vec.item[1].u.vec;
 #         } else {
 #         data = (struct vector *)NULL;
 #         }
@@ -3644,7 +3626,7 @@
 #         pop_n_elems(num_arg);
 #         push_number(ix);
 #     } else {
-#         assign_svalue(args, ix==-1 ? fail_val : &data->item[ix]);
+#         assign_svalue(args, ix==-1 ? fail_val : &data.item[ix]);
 #         pop_n_elems(num_arg-1);
 #     }
 #         break;
@@ -3655,10 +3637,10 @@
 #     {
 #     extern struct vector *intersect_alist
 #       PROT((struct vector *, struct vector *));
-#     struct vector *tmp = intersect_alist( (sp-1)->u.vec, sp->u.vec );
+#     struct vector *tmp = intersect_alist( (sp-1).u.vec, sp.u.vec );
 #     pop_stack();
-#     free_vector(sp->u.vec);
-#     sp->u.vec = tmp;
+#     free_vector(sp.u.vec);
+#     sp.u.vec = tmp;
 #     }
 # #endif /* F_INTERSECT_ALIST */
 # #ifdef F_DEBUG_INFO
@@ -3678,7 +3660,7 @@
 #         if ( arg[1].type != T_OBJECT)
 #             bad_arg(1,instruction);
 #         ob = arg[1].u.ob;
-#         flags = ob->flags;
+#         flags = ob.flags;
 #         add_message("O_HEART_BEAT      : %s\n",
 #           flags&O_HEART_BEAT      ?"TRUE":"FALSE");
 #         add_message("O_IS_WIZARD       : %s\n",
@@ -3699,24 +3681,24 @@
 #           flags&O_RESET_STATE     ?"TRUE":"FALSE");
 #         add_message("O_WILL_CLEAN_UP   : %s\n",
 #           flags&O_WILL_CLEAN_UP   ?"TRUE":"FALSE");
-#             add_message("total light : %d\n", ob->total_light);
-#         add_message("next_reset  : %d\n", ob->next_reset);
-#         add_message("time_of_ref : %d\n", ob->time_of_ref);
-#         add_message("ref         : %d\n", ob->ref);
+#             add_message("total light : %d\n", ob.total_light);
+#         add_message("next_reset  : %d\n", ob.next_reset);
+#         add_message("time_of_ref : %d\n", ob.time_of_ref);
+#         add_message("ref         : %d\n", ob.ref);
 # #ifdef DEBUG
-#         add_message("extra_ref   : %d\n", ob->extra_ref);
+#         add_message("extra_ref   : %d\n", ob.extra_ref);
 # #endif
-#         add_message("swap_num    : %ld\n", ob->swap_num);
-#         add_message("name        : '%s'\n", ob->name);
+#         add_message("swap_num    : %ld\n", ob.swap_num);
+#         add_message("name        : '%s'\n", ob.name);
 #         add_message("next_all    : OBJ(%s)\n",
-#           ob->next_all?ob->next_all->name:"NULL");
+#           ob.next_all?ob.next_all.name:"NULL");
 #         if (obj_list == ob) add_message(
 #             "This object is the head of the object list.\n");
-#         for (obj2=obj_list,i=1; obj2; obj2=obj2->next_all,i++)
-#             if (obj2->next_all == ob) {
+#         for (obj2=obj_list,i=1; obj2; obj2=obj2.next_all,i++)
+#             if (obj2.next_all == ob) {
 #             add_message(
 #                 "Previous object in object list: OBJ(%s)\n",
-#                 obj2->name);
+#                 obj2.name);
 #             add_message("position in object list:%d\n",i);
 #             }
 #         assign_svalue_no_free(&res,&const0);
@@ -3729,18 +3711,18 @@
 #             bad_arg(1,instruction);
 #         ob = arg[1].u.ob;
 #         
-#         add_message("program ref's %d\n", ob->prog->ref);
-#         add_message("Name %s\n", ob->prog->name);
+#         add_message("program ref's %d\n", ob.prog.ref);
+#         add_message("Name %s\n", ob.prog.name);
 #         add_message("program size %d\n",
-#         ob->prog->program_size);
-#         add_message("num func's %d (%d) \n", ob->prog->num_functions
-#         ,ob->prog->num_functions * sizeof(struct function));
-#         add_message("num strings %d\n", ob->prog->num_strings);
-#         add_message("num vars %d (%d)\n", ob->prog->num_variables
-#         ,ob->prog->num_variables * sizeof(struct variable));
-#         add_message("num inherits %d (%d)\n", ob->prog->num_inherited
-#         ,ob->prog->num_inherited * sizeof(struct inherit));
-#         add_message("total size %d\n", ob->prog->total_size);
+#         ob.prog.program_size);
+#         add_message("num func's %d (%d) \n", ob.prog.num_functions
+#         ,ob.prog.num_functions * sizeof(struct function));
+#         add_message("num strings %d\n", ob.prog.num_strings);
+#         add_message("num vars %d (%d)\n", ob.prog.num_variables
+#         ,ob.prog.num_variables * sizeof(struct variable));
+#         add_message("num inherits %d (%d)\n", ob.prog.num_inherited
+#         ,ob.prog.num_inherited * sizeof(struct inherit));
+#         add_message("total size %d\n", ob.prog.total_size);
 #         assign_svalue_no_free(&res,&const0);
 #         break;
 #         }
@@ -3754,8 +3736,8 @@
 # #endif /* F_DEBUG_INFO */
 #     }
 # #ifdef DEBUG
-#     if ((expected_stack && expected_stack != sp) ||
-#     sp < fp + csp->num_local_variables - 1)
+#     if ((expected_stack and expected_stack != sp) or
+#     sp < fp + csp.num_local_variables - 1)
 #     {
 #     fatal("Bad stack after evaluation. Instruction %d, num arg %d\n",
 #           instruction, num_arg);
@@ -3773,7 +3755,7 @@
 #  * through the inherit pointer by the current object. The 'current_object'
 #  * stores the base object, not the object that has the current function being
 #  * evaluated. Thus, the variable current_prog will normally be the same as
-#  * current_object->prog, but not when executing inherited code. Then,
+#  * current_object.prog, but not when executing inherited code. Then,
 #  * it will point to the code of the inherited object. As more than one
 #  * object can be inherited, the call of function by index number has to
 #  * be adjusted. The function number 0 in a superclass object must not remain
@@ -3784,7 +3766,7 @@
 #  *
 #  * There is a special case when called from the heart beat, as
 #  * current_prog will be 0. When it is 0, set current_prog
-#  * to the 'ob->prog' sent as argument.
+#  * to the 'ob.prog' sent as argument.
 #  *
 #  * Arguments are always removed from the stack.
 #  * If the function is not found, return 0 and nothing on the stack.
@@ -3798,270 +3780,50 @@
 #  */
 # 
 # char debug_apply_fun[30]; /* For debugging */
-# 
-# static int apply_low(fun, ob, num_arg)
-#     char *fun;
-#     struct object *ob;
-#     int num_arg;
-# {
-#     static int cache_id[0x40] = {
-#       0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-#       0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 };
-#     static char *cache_name[0x40];
-#     static struct function *cache_pr[0x40];
-#     static struct function *cache_pr_inherited[0x40];
-#     static struct program *cache_progp[0x40];
-#     static int cache_function_index_offset[0x40];
-#     static int cache_variable_index_offset[0x40];
-# 
-#     struct function *pr;
-#     struct program *progp;
-#     extern int num_error;
-#     struct control_stack *save_csp;
-#     int ix;
-# 
-#     ob->time_of_ref = current_time;    /* Used by the swapper */
-#     /*
-#      * This object will now be used, and is thus a target for
-#      * reset later on (when time due).
-#      */
-#     ob->flags &= ~O_RESET_STATE;
-# #ifdef DEBUG
-#     strncpy(debug_apply_fun, fun, sizeof debug_apply_fun);
-#     debug_apply_fun[sizeof debug_apply_fun - 1] = '\0';
-# #endif
-#     if (num_error > 0)
-#     goto failure;
-#     if (fun[0] == ':')
-#     error("Illegal function call\n");
-#     /*
-#      * If there is a chain of objects shadowing, start with the first
-#      * of these.
-#      */
-#     while (ob->shadowed && ob->shadowed != current_object)
-#     ob = ob->shadowed;
-# retry_for_shadow:
-#     if (ob->flags & O_SWAPPED)
-#     load_ob_from_swap(ob);
-#     progp = ob->prog;
-# #ifdef DEBUG
-#     if (ob->flags & O_DESTRUCTED)
-#     fatal("apply() on destructed object\n");
-# #endif
-#     ix = ( progp->id_number ^ (int)fun ^ ( (int)fun >> 6 ) ) & 0x3f;
-#     if (cache_id[ix] == progp->id_number && !strcmp(cache_name[ix], fun) &&
-#     (!cache_progp[ix] || cache_progp[ix] == ob->prog)) {
-#         /* We have found a matching entry in the cache. The pointer to
-#        the function name has to match, not only the contents.
-#        This is because hashing the string in order to get a cache index
-#        would be much more costly than hashing it's pointer.
-#        If cache access would be costly, the cache would be useless.
-#        */
-#     if (cache_progp[ix]) {
-#         /* the cache will tell us in wich program the function is, and
-#          * where
-#          */
-#         push_control_stack(cache_pr[ix]);
-#         csp->num_local_variables = num_arg;
-#         current_prog = cache_progp[ix];
-#         pr = cache_pr_inherited[ix];
-#         function_index_offset = cache_function_index_offset[ix];
-#         variable_index_offset = cache_variable_index_offset[ix];
-#         /* Remove excessive arguments */
-#         while(csp->num_local_variables > pr->num_arg) {
-#         pop_stack();
-#         csp->num_local_variables--;
-#         }
-#         /* Correct number of arguments and local variables */
-#         while(csp->num_local_variables < pr->num_arg + pr->num_local) {
-#         push_number(0);
-#         csp->num_local_variables++;
-#         }
-#         tracedepth++;
-#         if (TRACEP(TRACE_CALL)) {
-#         do_trace_call(pr);
-#         }
-#         fp = sp - csp->num_local_variables + 1;
-#         break_sp = (short*)(sp+1);
-# #ifdef OLD_PREVIOUS_OBJECT_BEHAVIOUR
-#         /* Now, previous_object() is always set, even by
-#          * call_other(this_object()). It should not break any
-#          * compatibility.
-#          */
-#         if (current_object != ob)
-# #endif
-#         previous_ob = current_object;
-#         current_object = ob;
-#         save_csp = csp;
-#         eval_instruction(current_prog->program + pr->offset);
-# #ifdef DEBUG
-#         if (save_csp-1 != csp)
-#         fatal("Bad csp after execution in apply_low\n");
-# #endif
-#         /*
-#          * Arguments and local variables are now removed. One
-#          * resulting value is always returned on the stack.
-#          */
-#         return 1;
-#     } /* when we come here, the cache has told us that the function isn't
-#        * defined in the object
-#        */
-#     } else {
-#     /* we have to search the function */
-#     if (!cache_progp[ix] && cache_id[ix]) {
-#         /* The old cache entry was for an undefined function, so the
-#            name had to be malloced */
-#         free(cache_name[ix]);
-#     }
-#     cache_id[ix] = progp->id_number;
-#         for(pr=progp->functions; pr < progp->functions + progp->num_functions;
-#             pr++)
-#         {
-#             eval_cost++;
-#             if (pr->name == 0 ||
-#                 pr->name[0] != fun[0] ||
-#                 strcmp(pr->name, fun) != 0 ||
-#                 (pr->type & TYPE_MOD_PRIVATE))
-#             {
-#                 continue;
-#             }
-#             if (pr->flags & NAME_UNDEFINED)
-#                 continue;
-#             /* Static functions may not be called from outside. */
-#             if ((pr->type & (TYPE_MOD_STATIC|TYPE_MOD_PRIVATE)) &&
-#         current_object != ob)
-#         {
-#                 continue;
-#         }
-#         /* The searched function is found */
-#         cache_pr[ix] = pr;
-#         cache_name[ix] = pr->name;
-#         push_control_stack(pr);
-#         csp->num_local_variables = num_arg;
-#         current_prog = progp;
-#         pr = setup_new_frame(pr);
-#         cache_pr_inherited[ix] = pr;
-#         cache_progp[ix] = current_prog;
-#         cache_variable_index_offset[ix] = variable_index_offset;
-#         cache_function_index_offset[ix] = function_index_offset;
-# #ifdef OLD_PREVIOUS_OBJECT_BEHAVIOUR
-#             if (current_object != ob)
-# #endif
-#                 previous_ob = current_object;
-#             current_object = ob;
-#             save_csp = csp;
-#             eval_instruction(current_prog->program + pr->offset);
-# #ifdef DEBUG
-#             if (save_csp-1 != csp)
-#                 fatal("Bad csp after execution in apply_low\n");
-# #endif
-#             /*
-#              * Arguments and local variables are now removed. One
-#              * resulting value is always returned on the stack.
-#              */
-#             return 1;
-#     }
-#     /* We have to mark a function not to be in the object */
-#     cache_name[ix] = string_copy(fun);
-#     cache_progp[ix] = (struct program *)0;
-#     }
-#     if (ob->shadowing) {
-#     /*
-#      * This is an object shadowing another. The function was not found,
-#      * but can maybe be found in the object we are shadowing.
-#      */
-#     ob = ob->shadowing;
-#     goto retry_for_shadow;
-#     }
-# failure:
-#     /* Failure. Deallocate stack. */
-#     pop_n_elems(num_arg);
-#     return 0;
-# }
-# 
-# /*
-#  * Arguments are supposed to be
-#  * pushed (using push_string() etc) before the call. A pointer to a
-#  * 'struct svalue' will be returned. It will be a null pointer if the called
-#  * function was not found. Otherwise, it will be a pointer to a static
-#  * area in apply(), which will be overwritten by the next call to apply.
-#  * Reference counts will be updated for this value, to ensure that no pointers
-#  * are deallocated.
-#  */
-# 
-# static struct svalue *sapply(fun, ob, num_arg)
-#     char *fun;
-#     struct object *ob;
-#     int num_arg;
-# {
-# #ifdef DEBUG
-#     struct svalue *expected_sp;
-# #endif
-#     static struct svalue ret_value = { T_NUMBER };
-# 
-#     if (TRACEP(TRACE_APPLY)) {
-#     do_trace("Apply", "", "\n");
-#     }
-# #ifdef DEBUG
-#     expected_sp = sp - num_arg;
-# #endif
-#     if (apply_low(fun, ob, num_arg) == 0)
-#     return 0;
-#     assign_svalue(&ret_value, sp);
-#     pop_stack();
-# #ifdef DEBUG
-#     if (expected_sp != sp)
-#     fatal("Corrupt stack pointer.\n");
-# #endif
-#     return &ret_value;
-# }
-# 
-# struct svalue *apply(fun, ob, num_arg)
-#     char *fun;
-#     struct object *ob;
-#     int num_arg;
-# {
-#     tracedepth = 0;
-#     return sapply(fun, ob, num_arg);
-# }
+import sys
+
+from bin import simulate, mud_object, comm
+
+
+def apply(fun, ob, *args):
+    
+    # This object will now be used, and is thus a target for
+    # reset later on (when time due).    
+    ob.O_RESET_STATE = False
+
+    if fun[0] == ':':
+        raise Exception("Illegal function call")
+    
+    # If there is a chain of objects shadowing, start with the first
+    # of these.
+    while ob.shadowed and ob.shadowed != simulate.current_object:
+        ob = ob.shadowed
+
+    try:
+        mud_object.previous_ob = simulate.current_object;
+        simulate.current_object = ob;
+        return ob.fun(args)        
+    except AttributeError:
+        pass
+    
+    if (ob.shadowing):
+        # This is an object shadowing another. The function was not found,
+        # but can maybe be found in the object we are shadowing.     
+        ob = ob.shadowing
+        return apply(fun, ob, args)
+    
+    return None
+
  
 # This function is similar to apply(), except that it will not
 # call the function, only return object name if the function exists,
 # or 0 otherwise.
-def function_exists(fun, ob):
-    raise NotImplementedError
-# char *function_exists(fun, ob)
-#     char *fun;
-#     struct object *ob;
-# {
-#     struct function *pr;
-# 
-# #ifdef DEBUG
-#     if (ob->flags & O_DESTRUCTED)
-#     fatal("function_exists() on destructed object\n");
-# #endif
-#     if (ob->flags & O_SWAPPED)
-#     load_ob_from_swap(ob);
-#     pr = ob->prog->functions;
-#     for(; pr < ob->prog->functions + ob->prog->num_functions; pr++) {
-#     struct program *progp;
-# 
-#     if (pr->name[0] != fun[0] || strcmp(pr->name, fun) != 0)
-#         continue;
-#     /* Static functions may not be called from outside. */
-#     if ((pr->type & TYPE_MOD_STATIC) && current_object != ob)
-#         continue;
-#     if (pr->flags & NAME_UNDEFINED)
-#         return 0;
-#     for (progp = ob->prog; pr->flags & NAME_INHERITED;) {
-#         progp = progp->inherit[pr->offset].prog;
-#         pr = &progp->functions[pr->function_index_offset];
-#     }
-#     return progp->name;
-#     }
-#     return 0;
-# }
-# 
+def function_exists(fun, ob):    
+    if hasattr(ob, fun) and callable(getattr(ob, fun)):
+        return ob.name
+    return None
+
+
 # /*
 #  * Call a specific function address in an object. This is done with no
 #  * frame set up. It is expected that there are no arguments. Returned
@@ -4072,19 +3834,19 @@ def function_exists(fun, ob):
 #     struct program *progp;
 #     struct function *pr;
 # {
-#     if (pr->flags & NAME_UNDEFINED)
+#     if (pr.flags & NAME_UNDEFINED)
 #     return;
 #     push_control_stack(pr);
 # #ifdef DEBUG
 #     if (csp != control_stack)
 #     fatal("call_function with bad csp\n");
 # #endif
-#     csp->num_local_variables = 0;
+#     csp.num_local_variables = 0;
 #     current_prog = progp;
 #     pr = setup_new_frame(pr);
 #     previous_ob = current_object;
 #     tracedepth = 0;
-#     eval_instruction(current_prog->program + pr->offset);
+#     eval_instruction(current_prog.program + pr.offset);
 #     pop_stack();    /* Throw away the returned result */
 # }
 # 
@@ -4100,12 +3862,12 @@ def function_exists(fun, ob):
 #     int i;
 #     if (progp == 0)
 #     return 0;
-#     offset = p - progp->program;
+#     offset = p - progp.program;
 # #ifdef DEBUG
-#     if (offset > progp->program_size)
-#     fatal("Illegal offset %d in object %s\n", offset, progp->name);
+#     if (offset > progp.program_size)
+#     fatal("Illegal offset %d in object %s\n", offset, progp.name);
 # #endif
-#     for (i=0; offset > progp->line_numbers[i]; i++)
+#     for (i=0; offset > progp.line_numbers[i]; i++)
 #     ;
 #     return i + 1;
 # }
@@ -4138,23 +3900,23 @@ def function_exists(fun, ob):
 # #endif
 #     for (p = &control_stack[0]; p < csp; p++) {
 #     (void)printf("'%15s' in '%20s' ('%20s')line %d\n",
-#              p[0].funp ? p[0].funp->name : "CATCH",
-#              p[1].prog->name, p[1].ob->name,
+#              p[0].funp ? p[0].funp.name : "CATCH",
+#              p[1].prog.name, p[1].ob.name,
 #              get_line_number(p[1].pc, p[1].prog));
 #     debug_message("'%15s' in '%20s' ('%20s')line %d\n",
-#              p[0].funp ? p[0].funp->name : "CATCH",
-#              p[1].prog->name, p[1].ob->name,
+#              p[0].funp ? p[0].funp.name : "CATCH",
+#              p[1].prog.name, p[1].ob.name,
 #              get_line_number(p[1].pc, p[1].prog));
-#     if (p->funp && strcmp(p->funp->name, "heart_beat") == 0)
-#         ret = p->ob?p->ob->name:0; /*crash unliked gc*/
+#     if (p.funp and strcmp(p.funp.name, "heart_beat") == 0)
+#         ret = p.ob?p.ob.name:0; /*crash unliked gc*/
 #     }
 #     (void)printf("'%15s' in '%20s' ('%20s')line %d\n",
-#          p[0].funp ? p[0].funp->name : "CATCH",
-#          current_prog->name, current_object->name,
+#          p[0].funp ? p[0].funp.name : "CATCH",
+#          current_prog.name, current_object.name,
 #          get_line_number(pc, current_prog));
 #     debug_message("'%15s' in '%20s' ('%20s')line %d\n",
-#          p[0].funp ? p[0].funp->name : "CATCH",
-#          current_prog->name, current_object->name,
+#          p[0].funp ? p[0].funp.name : "CATCH",
+#          current_prog.name, current_object.name,
 #          get_line_number(pc, current_prog));
 #     return ret;
 # }
@@ -4205,7 +3967,7 @@ def function_exists(fun, ob):
 #      * First, skip and match leading text.
 #      */
 #     for (cp=find_percent(fmt); fmt != cp; fmt++, in_string++) {
-#     if (in_string[0] == '\0' || fmt[0] != in_string[0])
+#     if (in_string[0] == '\0' or fmt[0] != in_string[0])
 #         return 0;
 #     }
 #     /*
@@ -4225,10 +3987,10 @@ def function_exists(fun, ob):
 #          * then we put them in the last variable (if any).
 #          */
 #         if (in_string[0]) {
-#         free_svalue(arg->u.lvalue);
-#         arg->u.lvalue->type = T_STRING;
-#         arg->u.lvalue->u.string = string_copy(in_string);
-#         arg->u.lvalue->string_type = STRING_MALLOC;
+#         free_svalue(arg.u.lvalue);
+#         arg.u.lvalue.type = T_STRING;
+#         arg.u.lvalue.u.string = string_copy(in_string);
+#         arg.u.lvalue.string_type = STRING_MALLOC;
 #         number_of_matches++;
 #         }
 #         break;
@@ -4256,10 +4018,10 @@ def function_exists(fun, ob):
 #         /* No match */
 #         break;
 #         }
-#         free_svalue(arg->u.lvalue);
-#         arg->u.lvalue->type = T_NUMBER;
-#         arg->u.lvalue->u.number = tmp_num;
-#         while(fmt[0] && fmt[0] == in_string[0])
+#         free_svalue(arg.u.lvalue);
+#         arg.u.lvalue.type = T_NUMBER;
+#         arg.u.lvalue.u.number = tmp_num;
+#         while(fmt[0] and fmt[0] == in_string[0])
 #         fmt++, in_string++;
 #         if (fmt[0] != '%') {
 #         number_of_matches++;
@@ -4280,10 +4042,10 @@ def function_exists(fun, ob):
 #      * Then this is the last match.
 #      */
 #     if (cp == fmt) {
-#         free_svalue(arg->u.lvalue);
-#         arg->u.lvalue->type = T_STRING;
-#         arg->u.lvalue->u.string = string_copy(in_string);
-#         arg->u.lvalue->string_type = STRING_MALLOC;
+#         free_svalue(arg.u.lvalue);
+#         arg.u.lvalue.type = T_STRING;
+#         arg.u.lvalue.u.string = string_copy(in_string);
+#         arg.u.lvalue.string_type = STRING_MALLOC;
 #         number_of_matches++;
 #         break;
 #     }
@@ -4297,10 +4059,10 @@ def function_exists(fun, ob):
 #         (void)strncpy(match, in_string, i);
 #         in_string += i + cp - fmt;
 #         match[i] = '\0';
-#         free_svalue(arg->u.lvalue);
-#         arg->u.lvalue->type = T_STRING;
-#         arg->u.lvalue->u.string = match;
-#         arg->u.lvalue->string_type = STRING_MALLOC;
+#         free_svalue(arg.u.lvalue);
+#         arg.u.lvalue.type = T_STRING;
+#         arg.u.lvalue.u.string = match;
+#         arg.u.lvalue.string_type = STRING_MALLOC;
 #         fmt = cp;    /* Advance fmt to next % */
 #         break;
 #         }
@@ -4401,12 +4163,12 @@ def function_exists(fun, ob):
 #     int i;
 # 
 #     /* Clones will not add to the ref count of inherited progs */
-#     if (progp->extra_ref != 1) return; /* marion */
-#     for (i=0; i< progp->num_inherited; i++) {
-#     progp->inherit[i].prog->extra_ref++;
-#     if (progp->inherit[i].prog == search_prog)
-#         printf("Found prog, inherited by %s\n", progp->name);
-#     count_inherits(progp->inherit[i].prog, search_prog);
+#     if (progp.extra_ref != 1) return; /* marion */
+#     for (i=0; i< progp.num_inherited; i++) {
+#     progp.inherit[i].prog.extra_ref++;
+#     if (progp.inherit[i].prog == search_prog)
+#         printf("Found prog, inherited by %s\n", progp.name);
+#     count_inherits(progp.inherit[i].prog, search_prog);
 #     }
 # }
 # 
@@ -4417,13 +4179,13 @@ def function_exists(fun, ob):
 #     struct svalue *p;
 # 
 #     for (p = svp; p < svp+num; p++) {
-#     switch(p->type) {
+#     switch(p.type) {
 #     case T_OBJECT:
-#         p->u.ob->extra_ref++;
+#         p.u.ob.extra_ref++;
 #         continue;
 #     case T_POINTER:
-#         count_ref_in_vector(&p->u.vec->item[0], p->u.vec->size);
-#         p->u.vec->extra_ref++;
+#         count_ref_in_vector(&p.u.vec.item[0], p.u.vec.size);
+#         p.u.vec.extra_ref++;
 #         continue;
 #     }
 #     }
@@ -4439,10 +4201,10 @@ def function_exists(fun, ob):
 #     struct svalue *p;
 # 
 #     for (p = svp; p < svp+num; p++) {
-#     switch(p->type) {
+#     switch(p.type) {
 #     case T_POINTER:
-#         clear_vector_refs(&p->u.vec->item[0], p->u.vec->size);
-#         p->u.vec->extra_ref = 0;
+#         clear_vector_refs(&p.u.vec.item[0], p.u.vec.size);
+#         p.u.vec.extra_ref = 0;
 #         continue;
 #     }
 #     }
@@ -4462,10 +4224,10 @@ def function_exists(fun, ob):
 #     /*
 #      * Pass 1: clear the ref counts.
 #      */
-#     for (ob=obj_list; ob; ob = ob->next_all) {
-#     ob->extra_ref = 0;
-#     ob->prog->extra_ref = 0;
-#     clear_vector_refs(ob->variables, ob->prog->num_variables);
+#     for (ob=obj_list; ob; ob = ob.next_all) {
+#     ob.extra_ref = 0;
+#     ob.prog.extra_ref = 0;
+#     clear_vector_refs(ob.variables, ob.prog.num_variables);
 #     }
 #     clear_vector_refs(start_of_stack, sp - start_of_stack + 1);
 # 
@@ -4476,15 +4238,15 @@ def function_exists(fun, ob):
 #     /*
 #      * List of all objects.
 #      */
-#     for (ob=obj_list; ob; ob = ob->next_all) {
-#     ob->extra_ref++;
-#     count_ref_in_vector(ob->variables, ob->prog->num_variables);
-#     ob->prog->extra_ref++;
-#     if (ob->prog == search_prog)
-#         printf("Found program for object %s\n", ob->name);
+#     for (ob=obj_list; ob; ob = ob.next_all) {
+#     ob.extra_ref++;
+#     count_ref_in_vector(ob.variables, ob.prog.num_variables);
+#     ob.prog.extra_ref++;
+#     if (ob.prog == search_prog)
+#         printf("Found program for object %s\n", ob.name);
 #     /* Clones will not add to the ref count of inherited progs */
-#     if (ob->prog->extra_ref == 1)
-#         count_inherits(ob->prog, search_prog);
+#     if (ob.prog.extra_ref == 1)
+#         count_inherits(ob.prog, search_prog);
 #     }
 # 
 #     /*
@@ -4493,7 +4255,7 @@ def function_exists(fun, ob):
 #     count_ref_in_vector(start_of_stack, sp - start_of_stack + 1);
 #     update_ref_counts_for_players();
 #     count_ref_from_call_outs();
-#     if (master_ob) master_ob->extra_ref++; /* marion */
+#     if (master_ob) master_ob.extra_ref++; /* marion */
 # 
 #     if (search_prog)
 #     return;
@@ -4501,14 +4263,14 @@ def function_exists(fun, ob):
 #     /*
 #      * Pass 3: Check the ref counts.
 #      */
-#     for (ob=obj_list; ob; ob = ob->next_all) {
-#     if (ob->ref != ob->extra_ref)
-#          fatal("Bad ref count in object %s, %d - %d\n", ob->name,
-#           ob->ref, ob->extra_ref);
-#     if (ob->prog->ref != ob->prog->extra_ref) {
-#         check_a_lot_ref_counts(ob->prog);
-#         fatal("Bad ref count in prog %s, %d - %d\n", ob->prog->name,
-#           ob->prog->ref, ob->prog->extra_ref);
+#     for (ob=obj_list; ob; ob = ob.next_all) {
+#     if (ob.ref != ob.extra_ref)
+#          fatal("Bad ref count in object %s, %d - %d\n", ob.name,
+#           ob.ref, ob.extra_ref);
+#     if (ob.prog.ref != ob.prog.extra_ref) {
+#         check_a_lot_ref_counts(ob.prog);
+#         fatal("Bad ref count in prog %s, %d - %d\n", ob.prog.name,
+#           ob.prog.ref, ob.prog.extra_ref);
 #     }
 #     }
 # }
@@ -4525,7 +4287,7 @@ def function_exists(fun, ob):
 # 
 #     if (!TRACEHB)
 #     return;
-#     objname = TRACETST(TRACE_OBJNAME) ? (current_object && current_object->name ? current_object->name : "??")  : "";
+#     objname = TRACETST(TRACE_OBJNAME) ? (current_object and current_object.name ? current_object.name : "??")  : "";
 #     sprintf(buf, "*** %d %*s %s %s %s%s", tracedepth, tracedepth, "", msg, objname, fname, post);
 #     add_message(buf);
 # }
@@ -4542,58 +4304,44 @@ def function_exists(fun, ob):
 #      */
 #     return sapply(fun, master_ob, num_arg);
 # }
-# 
-# void assert_master_ob_loaded()
-# {
-#     extern struct object *master_ob;
-#     static int inside = 0;
-# #ifndef COMPAT_MODE
-#     struct svalue *ret;
-# #endif
-# 
-#     if (master_ob == 0 || master_ob->flags & O_DESTRUCTED) {
-#     /*
-#      * The master object has been destructed. Free our reference,
-#      * and load a new one.
-#      *
-#      * This test is needed because the master object is called from
-#      * yyparse() at an error to find the wizard name. However, and error
-#      * when loading the master object will cause a recursive call to this
-#      * point.
-#      *
-#      * The best solution would be if the yyparse() did not have to call
-#      * the master object to find the name of the wizard.
-#      */
-#     if (inside) {
-#         fprintf(stderr, "Failed to load master object.\n");
-#         add_message("Failed to load master file !\n");
-#         exit(1);
-#     }
-#     fprintf(stderr, "assert_master_ob_loaded: Reloading master.c\n");
-#     if (master_ob)
-#         free_object(master_ob, "assert_master_ob_loaded");
-#     /*
-#      * Clear the pointer, in case the load failed.
-#      */
-#     master_ob = 0;
-#     inside = 1;
-# #ifdef COMPAT_MODE
-#         master_ob = load_object("obj/master",0);
-# #else
-#         master_ob = load_object("secure/master",0);
-# 
-#         ret = apply_master_ob("get_root_uid", 0);
-#         if (ret == 0 || ret->type != T_STRING) {
-#         fatal ("get_root_uid() in secure/master.c does not work\n");
-#         }
-#         master_ob->user = add_name(ret->u.string);
-#         master_ob->eff_user = master_ob->user;
-# #endif
-#     inside = 0;
-#     add_ref(master_ob, "assert_master_ob_loaded");
-#     fprintf(stderr, "Reloading done.\n");
-#     }
-# }
+
+inside = False
+
+def assert_master_ob_loaded():
+ 
+    if simulate.master_ob == None or simulate.master_ob.O_DESTRUCTED: 
+    
+        
+        # The master object has been destructed. Free our reference,
+        # and load a new one.
+        
+        # This test is needed because the master object is called from
+        # yyparse() at an error to find the wizard name. However, and error
+        # when loading the master object will cause a recursive call to this
+        # point.
+        
+        # The best solution would be if the yyparse() did not have to call
+        # the master object to find the name of the wizard.
+        
+        if (inside):
+        
+            print("Failed to load master object.", file=sys.stderr);
+            comm.add_message("Failed to load master file !\n");
+            exit(1);
+        
+        print("assert_master_ob_loaded: Reloading master.c", file=sys.stderr);
+        if simulate.master_ob:
+            mud_object.free_object(simulate.master_ob, "assert_master_ob_loaded");
+        
+        # Clear the pointer, in case the load failed.        
+        simulate.master_ob = None
+        inside = True
+        simulate.master_ob = simulate.load_object("obj/master",0)
+        inside = False
+        
+        print("Reloading done.", file=sys.stderr);
+        
+    
 # 
 # /*
 #  * When an object is destructed, all references to it must be removed
@@ -4605,13 +4353,13 @@ def function_exists(fun, ob):
 #     struct svalue *svp;
 # 
 #     for (svp = start_of_stack; svp <= sp; svp++) {
-#     if (svp->type != T_OBJECT)
+#     if (svp.type != T_OBJECT)
 #         continue;
-#     if (svp->u.ob != ob)
+#     if (svp.u.ob != ob)
 #         continue;
-#     free_object(svp->u.ob, "remove_object_from_stack");
-#     svp->type = T_NUMBER;
-#     svp->u.number = 0;
+#     free_object(svp.u.ob, "remove_object_from_stack");
+#     svp.type = T_NUMBER;
+#     svp.u.number = 0;
 #     }
 # }
 # 

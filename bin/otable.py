@@ -81,23 +81,14 @@ def enter_object_hash(ob):
 #     return;
 # }
 # 
-# /*
-#  * Lookup an object in the hash table; if it isn't there, return null.
-#  * This is only different to find_object_n in that it collects different
-#  * stats; more finds are actually done than the user ever asks for.
-#  */
-# 
-# static int user_obj_lookups = 0, user_obj_found = 0;
-# 
-# struct object * lookup_object_hash(s)
-# char * s;
-# {
-#     struct object * ob = find_obj_n(s);
-#     user_obj_lookups++;
-#     if (ob) user_obj_found++;
-#     return(ob);
-# }
-# 
+
+# Lookup an object in the hash table; if it isn't there, return null.
+# This is only different to find_object_n in that it collects different
+# stats; more finds are actually done than the user ever asks for.
+def lookup_object_hash(s):
+    return find_obj_n(s)    
+
+ 
 # /*
 #  * Print stats, returns the total size of the object table.  All objects
 #  * are in table, so their size is included as well.

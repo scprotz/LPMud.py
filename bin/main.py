@@ -2,10 +2,7 @@ import os
 import sys
 import time
 
-from bin import backend
-from bin import config
-from bin import simulate
-from bin import wiz_list
+from bin import config, backend, simulate, comm, wiz_list
 
 port_number = config.PORTNO
 
@@ -15,11 +12,17 @@ def main():
     backend.current_time = time.time()
     
     # change to the mudlib directory as the working directory
-    os.chdir(config.MUD_LIB)
-    
+    if os.chdir("../" + config.MUD_LIB) == -1:
+        print("Bad mudlib directory: %s\n" % config.MUD_LIB, out='', file=sys.stderr)
+        exit(1)
+
     # load the master object
-    simulate.master_ob = simulate.load_object("obj/master",0)
-       
+    try:
+        simulate.master_ob = simulate.load_object("obj/master",0)
+    except Exception as e:
+        print(e)
+        comm.add_message("Anomaly in the fabric of world space.\n")
+
     # test that it loaded correctly
     if simulate.master_ob == None:
         print("The file secure/master must be loadable.", file=sys.stderr)
@@ -40,5 +43,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
-
