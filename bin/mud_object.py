@@ -811,7 +811,7 @@ def get_empty_object(file_name):
 
 def reset_object(ob, arg):     
     # Be sure to update time first ! #
-    ob.next_reset = backend.current_time + config.TIME_TO_RESET//2 +  random.randrange(config.TIME_TO_RESET//2);   
+    ob.next_reset = backend.current_time + config.TIME_TO_RESET//2 +  random.randrange(1, (config.TIME_TO_RESET+1)//2)   
     interpret.apply("reset", ob, arg);
     ob.O_RESET_STATE = True
 

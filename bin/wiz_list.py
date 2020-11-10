@@ -1,6 +1,7 @@
 import sys
 
 from bin import main
+from builtins import FileNotFoundError
 
 
 class Wizard:
@@ -146,23 +147,17 @@ def load_wiz_file():
         print(fnfe)
 
 
-# 
-# Save the wizlist file.
-#
-# void save_wiz_file()
-# {
-#     struct wiz_list *wl;
-#     FILE *f;
-# 
-#     f = fopen("WIZLIST", "w");
-#     if (f == NULL) {
-#         fprintf(stderr, "Could not open WIZLIST for write\n");
-#         return;
-#     }
-#     for (wl = all_wiz; wl; wl = wl.next)
-#         fprintf(f, "%s %d %d\n", wl.name, wl.score, wl.total_worth);
-#     fclose(f);
-# }
+def save_wiz_file():
+    # Save the wizlist file.
+    try:
+        f = open("WIZLIST", "w")
+
+        for wl in all_wiz:
+            print("%s %d %d\n" % wl.name, wl.score, wl.total_worth)
+        f.close()
+    except FileNotFoundError:
+        print("Could not open WIZLIST for write", sys.stderr)
+
 
 # void wizlist(v)
 #     char *v;

@@ -91,7 +91,7 @@ class Efun():
 # object shadow(object, int);
 # void shout(string);
 # void shutdown();
-# int sizeof(mixed *);
+    ''' # int sizeof(mixed *); '''
 # object snoop(void|object, void|object);
 # mixed *sort_array(mixed *,string,object|string default: F_THIS_OBJECT);
 # int stringp(mixed);

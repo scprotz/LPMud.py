@@ -1,25 +1,22 @@
-# char *inherit_file;
-# char *last_verb;
-# 
+ 
 import os
 import sys
 
-from bin import mud_object, otable, interpret, simulate, wiz_list
-
+from bin import mud_object, otable, interpret, wiz_list, comm
 
 obj_list = []
 obj_list_destruct = []
 master_ob = None
-# struct object *obj_list, *obj_list_destruct, *master_ob;
-# 
-# extern struct wiz_list *back_bone_uid;
- 
-current_object = None # The object interpreting a function. #
-command_giver = None  # Where the current command came from. #
-current_interactive = None # The user who caused this execution #
- 
-# int num_parse_error;        # Number of errors in the parser. #
+obj_list = []
+obj_list_destruct = []
 
+current_object = None       # The object interpreting a function. #
+command_giver = None        # Where the current command came from. #
+current_interactive = None  # The user who caused this execution #
+
+# char *inherit_file;
+# char *last_verb;
+# int num_parse_error;        # Number of errors in the parser. #
 
 # struct variable *find_status(str, must_find)
 #     char *str;
@@ -37,12 +34,12 @@ current_interactive = None # The user who caused this execution #
 #        current_object.name);
 #     return 0;
 # }
- 
+
 
 # Give the correct uid and euid to a created object.
 def give_uid_to_object(ob):
  
-    if master_ob != None:    
+    if master_ob != None:
         interpret.assert_master_ob_loaded();
          
     # Is this object wizard defined ? #
@@ -837,7 +834,9 @@ def load_object(name, dont_reset):
 #     }
 #     command_giver = save_command_giver;
 # }
-# 
+
+def shout_string(msg):
+    raise NotImplementedError
 # void shout_string(str)
 #     char *str;
 # {
@@ -2106,41 +2105,26 @@ def legal_path(path):
 # This one is called from HUP.
 #
 game_is_being_shut_down = False
- 
-# #ifndef _AIX
+
+
+
 # void startshutdowngame() {
 #     game_is_being_shut_down = 1;
 # }
-# #else
-# void startshutdowngame(int arg) {
-#     game_is_being_shut_down = 1;
-# }
-# #endif
-# 
-# #
-#  * This one is called from the command "shutdown".
-#  * We don't call it directly from HUP, because it is dangerous when being
-#  * in an interrupt.
-#  #
-# void shutdowngame() {
-#     shout_string("Game driver shouts: LPmud shutting down immediately.\n");
-#     save_wiz_file();
-#     ipc_remove();
-#     remove_all_players();
-#     unlink_swap_file();
-# #ifdef DEALLOCATE_MEMORY_AT_SHUTDOWN
-#     remove_all_objects();
-#     free_all_sent();
-#     remove_wiz_list();
-#     dump_malloc_data();
-#     find_alloced_data();
-# #endif
-# #ifdef OPCPROF
-#     opcdump();
-# #endif
-#     exit(0);
-# }
-# 
+
+
+def shutdowngame():
+    """
+    # This one is called from the command "shutdown".
+    # We don't call it directly from HUP, because it is dangerous when being
+    # in an interrupt.
+    """
+    shout_string("Game driver shouts: LPmud shutting down immediately.\n")
+    wiz_list.save_wiz_file()
+    comm.ipc_remove()
+    comm.remove_all_players()
+    exit(0)
+
 # #
 #  * Transfer an object from an object to an object.
 #  * Call add_weight(), drop(), get(), prevent_insert(), add_weight(),

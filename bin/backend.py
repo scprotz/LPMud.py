@@ -1,42 +1,33 @@
-# 
-# The 'current_time' is updated at every heart beat.
-# 
+
 import sys
 import time
 
 from bin import config, comm, simulate
 
-
+# The 'current_time' is updated at every heart beat.
 current_time = 0
- 
-# static void cycle_hb_list PROT((void));
+current_heart_beat = None
+time_to_call_heart_beat = 0
 
-# struct object *current_heart_beat;
-# int time_to_call_heart_beat;
-# int comm_time_to_call_heart_beat = 0; #  this is set by interrupt, # 
-#     #  comm sets time_to_call_heart_beat sometime after # 
-# 
-# # 
-#  * There are global variables that must be zeroed before any execution.
-#  * In case of errors, there will be a longjmp(), and the variables will
-#  * have to be cleared explicitely. They are normally maintained by the
-#  * code that use them.
-#  *
-#  * This routine must only be called from top level, not from inside
-#  * stack machine execution (as stack will be cleared).
-#  # 
-# void clear_state() {
-#     extern struct object *previous_ob;
-# 
-#     current_object = 0;
-#     command_giver = 0;
-#     current_interactive = 0;
-#     previous_ob = 0;
-#     current_prog = 0;
-#     error_recovery_context_exists = 1;
-#     reset_machine(0);    #  Pop down the stack. # 
-# }
-# 
+# comm sets time_to_call_heart_beat sometime after #
+comm_time_to_call_heart_beat = 0  # this is set by interrupt, # 
+ 
+ 
+ 
+# There are global variables that must be zeroed before any execution.
+# In case of errors, there will be a longjmp(), and the variables will
+# have to be cleared explicitely. They are normally maintained by the
+# code that use them.
+#
+# This routine must only be called from top level, not from inside
+# stack machine execution (as stack will be cleared).
+ 
+def clear_state():
+    simulate.current_object = None
+    simulate.command_giver = None
+    simulate.current_interactive = None
+    simulate.previous_ob = None
+ 
 # void logon(ob)
 #     struct object *ob;
 # {
@@ -50,8 +41,8 @@ current_time = 0
 #     current_object = ob;
 #     ret = apply("logon", ob, 0);
 #     if (ret == 0) {
-#     add_message("prog %s:\n", ob->name);
-#     fatal("Could not find logon on the player %s\n", ob->name);
+#     add_message("prog %s:\n", ob.name);
+#     fatal("Could not find logon on the player %s\n", ob.name);
 #     }
 #     current_object = save;
 # }
@@ -79,100 +70,79 @@ current_time = 0
 # This is the backend. We will stay here for ever (almost).
 #
 
-def backend():
-    raise NotImplementedError
 
-# void backend()
-# {
-#     char buff[2000];
-#     extern int game_is_being_shut_down;
-#     extern int slow_shut_down_to_do;
-# 
-#     (void)printf("Setting up ipc.\n");
-#     fflush(stdout);
-#     prepare_ipc();
-#     (void)signal(SIGHUP, startshutdowngame);
-#     if (!t_flag)
-#     call_heart_beat();
-#     setjmp(error_recovery_context);
-#     while(1) {
-#     # 
-#      * The call of clear_state() should not really have to be done
-#      * once every loop. However, there seem to be holes where the
-#      * state is not consistent. If these holes are removed,
-#      * then the call of clear_state() can be moved to just before the
-#      * while() - statment. *sigh* /Lars
-#      # 
-#     clear_state();
-#     eval_cost = 0;
-#     remove_destructed_objects(); #  marion - before ref checks! # 
-# #ifdef DEBUG
-#     if (d_flag > 1)
-#         check_a_lot_ref_counts(0);
-# #endif
-#     if (game_is_being_shut_down)
-#         shutdowngame();
-#     if (slow_shut_down_to_do) {
-#         int tmp = slow_shut_down_to_do;
-#         slow_shut_down_to_do = 0;
-#         slow_shut_down(tmp);
-#     }
-#     if (get_message(buff, sizeof buff)) {
-#         void update_load_av PROT((void));
-# 
-#         update_load_av();
-#         # 
-#          * Now we have a string from the player. This string can go to
-#          * one of several places. If it is prepended with a '!', then
-#          * it is an escape from the 'ed' editor, so we send it
-#          * as a command to the parser.
-#          * If any object function is waiting for an input string, then
-#          * send it there.
-#          * Otherwise, send the string to the parser.
-#          * The player_parser() will find that current_object is 0, and
-#          * then set current_object to point to the object that defines
-#          * the command. This will enable such functions to be static.
-#          # 
-#         current_object = 0;
-#         current_interactive = command_giver;
-# 
-# #ifdef DEBUG
-#         if (!command_giver->interactive)
-#         fatal("Non interactive player in main loop !\n");
-# #endif
-#         if (buff[0] == '!' && command_giver->super)
-#         parse_command(buff+1, command_giver);
-#         else if (command_giver->interactive->ed_buffer)
-#         ed_cmd(buff);
-#         else if (call_function_interactive(command_giver->interactive,buff))
-#         ;    #  Do nothing ! # 
-#         else
-#         parse_command(buff, command_giver);
-#         # 
-#          * Print a prompt if player is still here.
-#          # 
-#         if (command_giver->interactive)
-#         print_prompt();
-#     }
-#     if (time_to_call_heart_beat)
-#         call_heart_beat();
-#     command_giver = 0;
-#     }
-# }
-# 
+def backend():
+
+    buff = []
+
+    print("Setting up ipc.")
+    sys.stdout.flush()
+    comm.prepare_ipc()
+
+    ''' maybe add for unix/linux/osx later '''
+    # (void)signal(SIGHUP, startshutdowngame);
+
+    call_heart_beat()
+
+    while True:
+
+        # The call of clear_state() should not really have to be done
+        # once every loop. However, there seem to be holes where the
+        # state is not consistent. If these holes are removed,
+        # then the call of clear_state() can be moved to just before the
+        # while() - statment. *sigh* /Lars
+
+        clear_state()
+        remove_destructed_objects() #  marion - before ref checks! # 
+        if simulate.game_is_being_shut_down:
+            simulate.shutdowngame()
+
+        if comm.get_message(buff): 
+
+            # Now we have a string from the player. This string can go to
+            # one of several places. If it is prepended with a '!', then
+            # it is an escape from the 'ed' editor, so we send it
+            # as a command to the parser.
+            # If any object function is waiting for an input string, then
+            # send it there.
+            # Otherwise, send the string to the parser.
+            # The player_parser() will find that current_object is 0, and
+            # then set current_object to point to the object that defines
+            # the command. This will enable such functions to be static.
+
+            simulate.current_object = None
+            simulate.current_interactive = simulate.command_giver
+
+            if buff[0] == '!' and simulate.command_giver.parent:
+                parse_command(buff+1, simulate.command_giver);
+            elif comm.call_function_interactive(simulate.command_giver.interactive,buff):
+                pass    #  Do nothing ! # 
+            else:
+                parse_command(buff, command_giver);
+
+            # Print a prompt if player is still here.
+            if simulate.command_giver.interactive:
+                comm.print_prompt()
+
+        if time_to_call_heart_beat:
+            call_heart_beat()
+        simulate.command_giver = None
+
+
+
 # # 
-#  * Despite the name, this routine takes care of several things.
-#  * It will loop through all objects once every 10 minutes.
-#  *
-#  * If an object is found in a state of not having done reset, and the
-#  * delay to next reset has passed, then reset() will be done.
-#  *
-#  * If the object has a existed more than the time limit given for swapping,
-#  * then 'clean_up' will first be called in the object, after which it will
-#  * be swapped out if it still exists.
-#  *
-#  * There are some problems if the object self-destructs in clean_up, so
-#  * special care has to be taken of how the linked list is used.
+# # Despite the name, this routine takes care of several things.
+# # It will loop through all objects once every 10 minutes.
+# #
+# # If an object is found in a state of not having done reset, and the
+# # delay to next reset has passed, then reset() will be done.
+# #
+# # If the object has a existed more than the time limit given for swapping,
+# # then 'clean_up' will first be called in the object, after which it will
+# # be swapped out if it still exists.
+# #
+# # There are some problems if the object self-destructs in clean_up, so
+# # special care has to be taken of how the linked list is used.
 #  # 
 # static void look_for_objects_to_swap() {
 #     extern long time_to_swap; #  marion - for invocation parameter # 
@@ -196,10 +166,10 @@ def backend():
 #      # 
 #     for (ob = obj_list; ob; ob = next_ob) {
 #     int ready_for_swap;
-#     if (ob->flags & O_DESTRUCTED) {
+#     if (ob.flags & O_DESTRUCTED) {
 #         ob = obj_list; #  restart # 
 #     }
-#     next_ob = ob->next_all;
+#     next_ob = ob.next_all;
 #         if (setjmp(error_recovery_context)) {        #  amylaar # 
 #             extern void clear_state();
 #             clear_state();
@@ -209,16 +179,16 @@ def backend():
 #     # 
 #      * Check reference time before reset() is called.
 #      # 
-#     if (current_time < ob->time_of_ref + time_to_swap)
+#     if (current_time < ob.time_of_ref + time_to_swap)
 #         ready_for_swap = 0;
 #     else
 #         ready_for_swap = 1;
 #     # 
 #      * Should this object have reset(1) called ?
 #      # 
-#     if (ob->next_reset < current_time && !(ob->flags & O_RESET_STATE)) {
+#     if (ob.next_reset < current_time and !(ob.flags & O_RESET_STATE)) {
 #         if (d_flag)
-#         fprintf(stderr, "RESET %s\n", ob->name);
+#         fprintf(stderr, "RESET %s\n", ob.name);
 #         reset_object(ob, 1);
 #     }
 # #if TIME_TO_CLEAN_UP > 0
@@ -231,28 +201,28 @@ def backend():
 #      * Only if the clean_up returns a non-zero value, will it be called
 #      * again.
 #      # 
-#     if (current_time - ob->time_of_ref > TIME_TO_CLEAN_UP &&
-#         (ob->flags & O_WILL_CLEAN_UP))
+#     if (current_time - ob.time_of_ref > TIME_TO_CLEAN_UP and
+#         (ob.flags & O_WILL_CLEAN_UP))
 #     {
-#         int save_reset_state = ob->flags & O_RESET_STATE;
+#         int save_reset_state = ob.flags & O_RESET_STATE;
 #         struct svalue *svp;
 # 
 #         if (d_flag)
-#         fprintf(stderr, "clean up %s\n", ob->name);
+#         fprintf(stderr, "clean up %s\n", ob.name);
 #         # 
 #          * Supply a flag to the object that says if this program
 #          * is inherited by other objects. Cloned objects might as well
 #          * believe they are not inherited. Swapped objects will not
-#          * have a ref count > 1 (and will have an invalid ob->prog
+#          * have a ref count > 1 (and will have an invalid ob.prog
 #          * pointer).
 #          # 
-#         push_number(ob->flags & (O_CLONE|O_SWAPPED) ? 0 : ob->prog->ref);
+#         push_number(ob.flags & (O_CLONE|O_SWAPPED) ? 0 : ob.prog.ref);
 #         svp = apply("clean_up", ob, 1);
-#         if (ob->flags & O_DESTRUCTED)
+#         if (ob.flags & O_DESTRUCTED)
 #         continue;
-#         if (!svp || (svp->type == T_NUMBER && svp->u.number == 0))
-#         ob->flags &= ~O_WILL_CLEAN_UP;
-#         ob->flags |= save_reset_state;
+#         if (!svp or (svp.type == T_NUMBER and svp.u.number == 0))
+#         ob.flags &= ~O_WILL_CLEAN_UP;
+#         ob.flags |= save_reset_state;
 #     }
 # #endif #  TIME_TO_CLEAN_UP > 0 # 
 # #if TIME_TO_SWAP > 0
@@ -260,12 +230,12 @@ def backend():
 #      * At last, there is a possibility that the object can be swapped
 #      * out.
 #      # 
-#     if (ob->flags & O_SWAPPED || !ready_for_swap)
+#     if (ob.flags & O_SWAPPED or !ready_for_swap)
 #         continue;
-#     if (ob->flags & O_HEART_BEAT)
+#     if (ob.flags & O_HEART_BEAT)
 #         continue;
 #     if (d_flag)
-#         fprintf(stderr, "swap %s\n", ob->name);
+#         fprintf(stderr, "swap %s\n", ob.name);
 #     swap(ob);    #  See if it is possible to swap out to disk # 
 # #endif
 #     }
@@ -295,8 +265,10 @@ def backend():
 # static int num_hb_objs = 0;  #  so we know when to stop! # 
 # static int num_hb_calls = 0; #  stats # 
 # static float perc_hb_probes = 100.0; #  decaying avge of how many complete # 
-# 
-# void call_heart_beat() {
+ 
+def call_heart_beat():
+    raise NotImplementedError
+#     {
 #     struct object *ob, *hide_current = current_object;
 #     int num_done = 0;
 #     
@@ -311,38 +283,38 @@ def backend():
 #     current_time = get_current_time();
 #     current_interactive = 0;
 # 
-#     if ((num_player > 0) && hb_list) {
+#     if ((num_player > 0) and hb_list) {
 #         num_hb_calls++;
-#     while (hb_list &&
+#     while (hb_list and
 # #ifndef MSDOS
 #            !comm_time_to_call_heart_beat
 # #else
 #            !timer_expired()
 # #endif
-#            && (num_done < num_hb_objs)) {
+#            and (num_done < num_hb_objs)) {
 #         num_done++;
 #         cycle_hb_list();
 #         ob = hb_tail; #  now at end # 
-#         if (!(ob->flags & O_HEART_BEAT))
+#         if (!(ob.flags & O_HEART_BEAT))
 #         fatal("Heart beat not set in object on heart beat list!");
-#         if (ob->flags & O_SWAPPED)
+#         if (ob.flags & O_SWAPPED)
 #         fatal("Heart beat in swapped object.\n");
 #         #  move ob to end of list, do ob # 
-#         if (ob->prog->heart_beat == -1)
+#         if (ob.prog.heart_beat == -1)
 #         continue;
-#         current_prog = ob->prog;
+#         current_prog = ob.prog;
 #         current_object = ob;
 #         current_heart_beat = ob;
 #         command_giver = ob;
-#         while(command_giver->shadowing)
-#         command_giver = command_giver->shadowing;
-#         if (!(command_giver->flags & O_ENABLE_COMMANDS))
+#         while(command_giver.shadowing)
+#         command_giver = command_giver.shadowing;
+#         if (!(command_giver.flags & O_ENABLE_COMMANDS))
 #         command_giver = 0;
-#         if (ob->user)
-#         ob->user->heart_beats++;
+#         if (ob.user)
+#         ob.user.heart_beats++;
 #         eval_cost = 0;
-#         call_function(ob->prog,
-#               &ob->prog->functions[ob->prog->heart_beat]);
+#         call_function(ob.prog,
+#               &ob.prog.functions[ob.prog.heart_beat]);
 #     }
 #     if (num_hb_objs)
 #         perc_hb_probes = 100 * (float) num_done / num_hb_objs;
@@ -371,10 +343,10 @@ def backend():
 #     if (hb_list == hb_tail)
 #     return; #  1 object on list # 
 #     ob = hb_list;
-#     hb_list = hb_list -> next_heart_beat;
-#     hb_tail -> next_heart_beat = ob;
+#     hb_list = hb_list . next_heart_beat;
+#     hb_tail . next_heart_beat = ob;
 #     hb_tail = ob;
-#     ob->next_heart_beat = 0;
+#     ob.next_heart_beat = 0;
 # }
 # 
 # # 
@@ -391,43 +363,43 @@ def backend():
 #     struct object * o = hb_list;
 #     struct object * oprev = 0;
 # 
-#     if (ob->flags & O_DESTRUCTED)
+#     if (ob.flags & O_DESTRUCTED)
 #     return 0;
 #     if (to)
 #     to = 1;
 # 
-#     while (o && o != ob) {
-#     if (!(o->flags & O_HEART_BEAT))
+#     while (o and o != ob) {
+#     if (!(o.flags & O_HEART_BEAT))
 #         fatal("Found disabled object in the active heart beat list!\n");
 #     oprev = o;
-#     o = o->next_heart_beat;
+#     o = o.next_heart_beat;
 #     }
 # 
-#     if (!o && (ob->flags & O_HEART_BEAT))
+#     if (!o and (ob.flags & O_HEART_BEAT))
 #     fatal("Couldn't find enabled object in heart beat list!");
 #     
-#     if (to == ((ob->flags & O_HEART_BEAT) != 0))
+#     if (to == ((ob.flags & O_HEART_BEAT) != 0))
 #     return(0);
 # 
 #     if (to) {
-#     ob->flags |= O_HEART_BEAT;
-#     if (ob->next_heart_beat)
+#     ob.flags |= O_HEART_BEAT;
+#     if (ob.next_heart_beat)
 #         fatal("Dangling pointer to next_heart_beat in object!");
-#     ob->next_heart_beat = hb_list;
+#     ob.next_heart_beat = hb_list;
 #     hb_list = ob;
 #     if (!hb_tail) hb_tail = ob;
 #     num_hb_objs++;
 #     cycle_hb_list();     #  Added by Linus. 911104 # 
 #     }
 #     else { #  remove all refs # 
-#     ob->flags &= ~O_HEART_BEAT;
+#     ob.flags &= ~O_HEART_BEAT;
 #     if (hb_list == ob)
-#         hb_list = ob->next_heart_beat;
+#         hb_list = ob.next_heart_beat;
 #     if (hb_tail == ob)
 #         hb_tail = oprev;
 #     if (oprev)
-#         oprev->next_heart_beat = ob->next_heart_beat;
-#     ob->next_heart_beat = 0;
+#         oprev.next_heart_beat = ob.next_heart_beat;
+#     ob.next_heart_beat = 0;
 #     num_hb_objs--;
 #     }
 # 
@@ -513,15 +485,15 @@ def load_first_objects():
 #     push_number(eflag);
 #     ret = apply_master_ob("epilog", 1);
 # 
-#     if ((ret == 0) || (ret->type != T_POINTER))
+#     if ((ret == 0) or (ret.type != T_POINTER))
 #     return;
 #     else
-#     prefiles = ret->u.vec;
+#     prefiles = ret.u.vec;
 # 
-#     if ((prefiles == 0) || (prefiles->size < 1))
+#     if ((prefiles == 0) or (prefiles.size < 1))
 #     return;
 # 
-#     prefiles->ref++;
+#     prefiles.ref++;
 # 
 #     ix = -1;
 #     if (setjmp(error_recovery_context)) {
@@ -530,12 +502,12 @@ def load_first_objects():
 #     }
 #     error_recovery_context_exists = 1;
 # 
-#     while (++ix < prefiles->size) {
-#     if (prefiles->item[ix].type != T_STRING)
+#     while (++ix < prefiles.size) {
+#     if (prefiles.item[ix].type != T_STRING)
 #         continue;
 # 
 #     eval_cost = 0;
-#     push_string(prefiles->item[ix].u.string, STRING_MALLOC);
+#     push_string(prefiles.item[ix].u.string, STRING_MALLOC);
 #     (void)apply_master_ob("preload", 1);
 # 
 # #ifdef MALLOC_malloc
@@ -555,21 +527,19 @@ def load_first_objects():
 # void catch_alarm() {
 #     comm_time_to_call_heart_beat = 1;
 # }
-# 
-# # 
-#  * All destructed objects are moved int a sperate linked list,
-#  * and deallocated after program execution.
-#  # 
-# void remove_destructed_objects()
-# {
-#     struct object *ob, *next;
-#     for (ob=obj_list_destruct; ob; ob = next) {
-#     next = ob->next_all;
-#     destruct2(ob);
-#     }
-#     obj_list_destruct = 0;
-# }
-# 
+
+
+def remove_destructed_objects():
+    """
+    # All destructed objects are moved int a sperate linked list,
+    # and deallocated after program execution.
+    """
+    for ob in obj_list_destruct:
+        simulate.destruct2(ob)
+        obj_list_destruct.remove(ob)
+
+
+
 # # 
 #  * Append string to file. Return 0 for failure, otherwise 1.
 #  # 
@@ -582,7 +552,7 @@ def load_first_objects():
 # #ifdef COMPAT_MODE
 #     file = check_file_name(file, 1);
 # #else
-#     file = check_valid_path(file, current_object->eff_user, "write_file", 1);
+#     file = check_valid_path(file, current_object.eff_user, "write_file", 1);
 # #endif
 #     if (!file)
 #     return 0;
@@ -607,7 +577,7 @@ def load_first_objects():
 # #ifdef COMPAT_MODE
 #     file = check_file_name(file, 0);
 # #else    
-#     file = check_valid_path(file, current_object->eff_user, "read_file", 0);
+#     file = check_valid_path(file, current_object.eff_user, "read_file", 0);
 # #endif    
 # 
 #     if (!file)
@@ -619,7 +589,7 @@ def load_first_objects():
 #     fatal("Could not stat an open file.\n");
 #     size = st.st_size;
 #     if (size > READ_FILE_MAX_SIZE) {
-#     if ( start || len ) size = READ_FILE_MAX_SIZE;
+#     if ( start or len ) size = READ_FILE_MAX_SIZE;
 #     else {
 #         fclose(f);
 #         return 0;
@@ -639,16 +609,16 @@ def load_first_objects():
 #         }
 #     st.st_size -= size;
 #     end = str+size;
-#         for (p=str; ( p2=memchr(p,'\n',end-p) ) && --start; ) p=p2+1;
+#         for (p=str; ( p2=memchr(p,'\n',end-p) ) and --start; ) p=p2+1;
 #     } while ( start > 1 );
 #     for (p2=str; p != end; ) {
 #         c = *p++;
-#     if ( !isprint(c) && !isspace(c) ) c=' ';
+#     if ( !isprint(c) and !isspace(c) ) c=' ';
 #     *p2++=c;
 #     if ( c == '\n' )
 #         if (!--len) break;
 #     }
-#     if ( len && st.st_size ) {
+#     if ( len and st.st_size ) {
 #     size -= ( p2-str) ; 
 #     if (size > st.st_size)
 #         size = st.st_size;
@@ -661,12 +631,12 @@ def load_first_objects():
 #     end = p2+size;
 #         for (; p2 != end; ) {
 #         c = *p2;
-#         if ( !isprint(c) && !isspace(c) ) *p2=' ';
+#         if ( !isprint(c) and !isspace(c) ) *p2=' ';
 #         p2++;
 #         if ( c == '\n' )
 #             if (!--len) break;
 #     }
-#     if ( st.st_size && len ) {
+#     if ( st.st_size and len ) {
 #         #  tried to read more than READ_MAX_FILE_SIZE # 
 #         fclose(f);
 #         free(str);
@@ -706,7 +676,7 @@ def load_first_objects():
 # #ifdef COMPAT_MODE
 #     file = check_file_name(file, 0);
 # #else    
-#     file = check_valid_path(file, current_object->eff_user, 
+#     file = check_valid_path(file, current_object.eff_user, 
 #                 "read_bytes", 0);
 # #endif    
 # 
@@ -745,7 +715,7 @@ def load_first_objects():
 # 
 #     #  We want to allow all characters to pass untouched!
 #     for (il=0;il<size;il++) 
-#     if (!isprint(str[il]) && !isspace(str[il]))
+#     if (!isprint(str[il]) and !isspace(str[il]))
 #         str[il] = ' ';
 # 
 #     str[il] = 0;
@@ -773,7 +743,7 @@ def load_first_objects():
 # #ifdef COMPAT_MODE    
 #     file = check_file_name(file, 1);
 # #else    
-#     file = check_valid_path(file, current_object->eff_user, 
+#     file = check_valid_path(file, current_object.eff_user, 
 #                 "write_bytes", 1);
 # #endif    
 # 
@@ -821,7 +791,7 @@ def load_first_objects():
 # #ifdef COMPAT_MODE
 #     file = check_file_name(file, 0);
 # #else
-#     file = check_valid_path(file, current_object->eff_user, "file_size", 0);
+#     file = check_valid_path(file, current_object.eff_user, "file_size", 0);
 # #endif
 #     if (!file)
 #     return -1;
@@ -832,57 +802,4 @@ def load_first_objects():
 #     return st.st_size;
 # }
 # 
-# static double load_av = 0.0;
-# 
-# void update_load_av() {
-#     extern double consts[5];
-#     extern int current_time;
-#     static int last_time;
-#     int n;
-#     double c;
-#     static int acc = 0;
-# 
-#     acc++;
-#     if (current_time == last_time)
-#     return;
-#     n = current_time - last_time;
-#     if (n < sizeof consts / sizeof consts[0])
-#     c = consts[n];
-#     else
-#     c = exp(- n / 900.0);
-#     load_av = c * load_av + acc * (1 - c) / n;
-#     last_time = current_time;
-#     acc = 0;
-# }
-# 
-# static double compile_av = 0.0;
-# 
-# void update_compile_av(lines)
-#     int lines;
-# {
-#     extern double consts[5];
-#     extern int current_time;
-#     static int last_time;
-#     int n;
-#     double c;
-#     static int acc = 0;
-# 
-#     acc += lines;
-#     if (current_time == last_time)
-#     return;
-#     n = current_time - last_time;
-#     if (n < sizeof consts / sizeof consts[0])
-#     c = consts[n];
-#     else
-#     c = exp(- n / 900.0);
-#     compile_av = c * compile_av + acc * (1 - c) / n;
-#     last_time = current_time;
-#     acc = 0;
-# }
-# 
-# char *query_load_av() {
-#     static char buff[100];
-# 
-#     sprintf(buff, "%.2f cmds/s, %.2f comp lines/s", load_av, compile_av);
-#     return buff;
-# }
+

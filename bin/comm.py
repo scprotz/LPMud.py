@@ -153,7 +153,10 @@
 # int inet_packets=0;
 # int inet_volume=0;
 # #endif
-# 
+
+
+def prepare_ipc():
+    raise NotImplementedError
 # void prepare_ipc() {
 # #ifndef MSDOS
 #     struct sockaddr_in sin;
@@ -228,6 +231,8 @@
 # /*
 #  * This one is called when shutting down the MUD.
 #  */
+def ipc_remove():
+    raise NotImplementedError
 # void ipc_remove() {
 #     (void)printf("Shutting down ipc...\n");
 # #ifndef MSDOS
@@ -1168,7 +1173,9 @@ def add_message(msg):
 #     add_message("%-15s %-15s %s\n",
 #         hp ? hp->h_name : inet_ntoa(i->addr.sin_addr), str, room);
 # }
-# 
+
+def remove_all_players():
+    raise NotImplementedError 
 # void remove_all_players()
 # {
 #     int i;
