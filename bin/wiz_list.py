@@ -1,7 +1,6 @@
 import sys
 
-from bin import main
-from builtins import FileNotFoundError
+from bin import backend, wiz_list
 
 
 class Wizard:
@@ -30,10 +29,8 @@ class Wizard:
 # };
 
 
-#
-# Maintain the wizards high score list about most popular castle.
-#
-all_wiz = []
+all_wiz = []  # Maintain the wizards high score list about most popular castle.
+next_time = 0
 
 # 
 # Sort the wiz list in ascending order.
@@ -56,7 +53,7 @@ all_wiz = []
 
 # static void rebuild_list() {
 #     struct wiz_list *wl, *w, *new_list = 0;
-# 
+#
 #     for (w = all_wiz; w; w = wl) {
 #     wl = w.next;
 #     new_list = insert(w, new_list);
@@ -64,22 +61,23 @@ all_wiz = []
 #     all_wiz = new_list;
 # }
 
-# 
-# Find the data, if it exists.
-#
+
 def find_wiz(name):
+    """
+    Find the data, if it exists.
+    """
     for wiz in all_wiz:
         if wiz.name == name:
             return wiz
     return None
-    
-# 
-# Check that a name exists. Add it, if it doesn't.
-#
+
+
 def add_name(name):
-    
+    """
+    Check that a name exists. Add it, if it doesn't.
+    """
     wl = find_wiz(name)
-    if wl != None:
+    if wl is not None:
         return wl
     wl = Wizard()
     wl.name = name
@@ -91,56 +89,50 @@ def add_name(name):
     return wl
 
 
-# 
-# Add score to an existing name.
-#
 def add_score(name, score):
- 
+    """
+    Add score to an existing name.
+    """
     wl = find_wiz(name)
-    if wl == None:
-        print("Add_score: could not find wizard %s" % name, file=sys.stderr);
-    wl.score += score;
+    if wl is None:
+        print("Add_score: could not find wizard %s" % name, file=sys.stderr)
+    wl.score += score
 
 
-# 
-# This one is called at every complete walkaround of reset.
-#
-# void wiz_decay() {
-#     struct wiz_list *wl;
-#     static int next_time;
-#     extern int current_time;
-# 
-#    #  Perform this once every hour.#
-#     if (next_time > current_time)
-#     return;
-#     next_time = current_time + 60# 60;
-#     for (wl = all_wiz; wl; wl = wl.next) {
-#         wl.score = wl.score# 99 / 100;
-#     wl.total_worth = wl.total_worth# 99 / 100;
-#     wl.cost = wl.cost# 9 / 10;
-#     wl.heart_beats = wl.heart_beats# 9 / 10;
-#     }
-# }
+def wiz_decay():
+    """
+    This one is called at every complete walkaround of reset.
+    """
+    # Perform this once every hour.#
+    if next_time > backend.current_time:
+        return
+    wiz_list.next_time = backend.current_time + 60 * 60
 
-# 
-# Load the wizlist file.
-#
+    for wl in all_wiz:
+        wl.score = wl.score * 99 / 100
+        wl.total_worth = wl.total_worth * 99 // 100
+        wl.cost = wl.cost * 9 / 10
+        wl.heart_beats = wl.heart_beats * 9 // 10
+
+
 def load_wiz_file():
-
+    """
+    Load the wizlist file.
+    """
     try:
-        f = open("WIZLIST", "r");
+        f = open("WIZLIST", "r")
         for line in f:
             p = line.split()
             if len(p) != 3:
                 print("Bad WIZLIST file.", file=sys.stderr)
-            break;
-        
+            break
+
             name = p[0]
             score = int(p[1])
-        
+
             if score > 0:
                 add_name(name)
-                add_score(name, score)        
+                add_score(name, score)
             f.close()
     except FileNotFoundError as fnfe:
         print("WIZLIST file not found", file=sys.stderr)
@@ -167,7 +159,7 @@ def save_wiz_file():
 #     extern struct object *command_giver;
 #     int all = 0;
 #     struct svalue *name;
-# 
+#
 #     if (!command_giver)
 #     return;
 #     if (v == 0) {
@@ -206,7 +198,7 @@ def save_wiz_file():
 
 # void remove_wiz_list() {
 #     struct wiz_list *wl, *w;
-# 
+#
 #     for (w = all_wiz; w; w = wl) {
 #     free(w.name);
 #     wl = w.next;
@@ -223,7 +215,7 @@ def save_wiz_file():
 #     char name[100];
 #     char *p;
 #     int len;
-# 
+#
 #     p = get_wiz_name(file);
 #     if(!p)
 #     return;
@@ -263,9 +255,9 @@ def save_wiz_file():
 #     char *name;
 # {
 #     struct wiz_list *wl;
-# 
+#
 #     wl = add_name(name);
-#    # 
+#
 #    # The error_message is used as a flag if there has been any error.
 #     #
 #     if (wl.error_message == 0) {
@@ -279,7 +271,7 @@ def save_wiz_file():
 #     return wl.file_name;
 # }
 
-# 
+#
 # Argument is a file name, which we want to get the owner of.
 # Ask the master.c object !
 #
@@ -288,7 +280,7 @@ def save_wiz_file():
 # {
 #     struct svalue *ret;
 #     static char buff[50];
-# 
+#
 #     push_string(file, STRING_CONSTANT);
 #     ret = apply_master_ob("get_wiz_name", 1);
 #     if (ret == 0 || ret.type != T_STRING)
@@ -296,4 +288,3 @@ def save_wiz_file():
 #     strcpy(buff, ret.u.string);
 #     return buff;
 # }
-

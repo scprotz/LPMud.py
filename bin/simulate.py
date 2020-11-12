@@ -36,25 +36,26 @@ current_interactive = None  # The user who caused this execution #
 # }
 
 
-# Give the correct uid and euid to a created object.
 def give_uid_to_object(ob):
- 
-    if master_ob != None:
-        interpret.assert_master_ob_loaded();
-         
+    """
+    Give the correct uid and euid to a created object.
+    """
+    if master_ob is not None:
+        interpret.assert_master_ob_loaded()
+
     # Is this object wizard defined ? #
     index = ob.name.find("players/")
-    
+
     if(index != -1):
         wiz_name = ob.name[index + 8:]
-    
+
         # if it has another "/" in it, there is a wiz_name
         np = None
         if wiz_name.find("/") != -1:
-            np = wiz_name[:wiz_name.find("/")]        
-        ob.user = wiz_list.add_name(np)    
-    else:    
-        ob.user = None    
+            np = wiz_name[:wiz_name.find("/")]
+        ob.user = wiz_list.add_name(np)
+    else:
+        ob.user = None
     ob.eff_user = ob.user    # Initial state #
     return True
 
@@ -471,11 +472,13 @@ def load_object(name, dont_reset):
 #     obj_list_destruct = ob;
 #     ob.flags |= O_DESTRUCTED;
 # }
-# 
-# #
-#  * This one is called when no program is executing from the main loop.
-#  #
-# void destruct2(ob)
+
+
+def destruct2(ob):
+    """
+    This one is called when no program is executing from the main loop.
+    """
+    raise NotImplementedError
 #     struct object *ob;
 # {
 #     if (d_flag > 1) {
@@ -1483,12 +1486,14 @@ def find_object2(name):
 
 # def free_sentence(p):
 #     pass
- 
-# #
-#  * Find the sentence for a command from the player.
-#  * Return success status.
-#  #
-# int player_parser(buff)
+
+
+def player_parser(buff):
+    """
+    Find the sentence for a command from the player.
+    Return success status.
+    """
+    raise NotImplementedError
 #     char *buff;
 # {
 #     struct sentence *s;
@@ -2115,9 +2120,9 @@ game_is_being_shut_down = False
 
 def shutdowngame():
     """
-    # This one is called from the command "shutdown".
-    # We don't call it directly from HUP, because it is dangerous when being
-    # in an interrupt.
+    This one is called from the command "shutdown".
+    We don't call it directly from HUP, because it is dangerous when being
+    in an interrupt.
     """
     shout_string("Game driver shouts: LPmud shutting down immediately.\n")
     wiz_list.save_wiz_file()

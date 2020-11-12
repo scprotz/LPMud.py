@@ -304,35 +304,21 @@
 # #endif
 #     return &current_object.variables[num];
 # }
+
+
+
+# def free_svalue(v):
+#     """
+#     Free the data that an svalue is pointing to. Not the svalue
+#     itself.
+#     """
 # 
-# /*
-#  * Free the data that an svalue is pointing to. Not the svalue
-#  * itself.
-#  */
-# void free_svalue(v)
-#     struct svalue *v;
-# {
-#     switch(v.type) {
-#     case T_STRING:
-#     switch(v.string_type) {
-#     case STRING_MALLOC:
-#         free(v.u.string);
-#         break;
-#     case STRING_SHARED:
-#         free_string(v.u.string);
-#         break;
-#     }
-#     break;
-#     case T_OBJECT:
-#     free_object(v.u.ob, "free_svalue");
-#     break;
-#     case T_POINTER:
-#     free_vector(v.u.vec);
-#     break;
-#     }
-#     *v = const0; /* marion - clear this value all away */
-# }
-# 
+#     if isinstance(v, Mud_Object):
+#         mud_object.free_object(v,"free_svalue")
+#     elif isinstance(v, list):
+#         v.pop(0)
+#         free_vector(v)
+ 
 # #ifndef COMPAT_MODE
 # /*
 #  * Prepend a slash in front of a string.

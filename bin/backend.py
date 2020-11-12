@@ -2,32 +2,33 @@
 import sys
 import time
 
-from bin import config, comm, simulate
+from bin import config, comm, simulate, call_out, wiz_list
 
-# The 'current_time' is updated at every heart beat.
-current_time = 0
+
+current_time = 0  # The 'current_time' is updated at every heart beat.
 current_heart_beat = None
 time_to_call_heart_beat = 0
+heart_beat_list = []
 
-# comm sets time_to_call_heart_beat sometime after #
-comm_time_to_call_heart_beat = 0  # this is set by interrupt, # 
- 
- 
- 
-# There are global variables that must be zeroed before any execution.
-# In case of errors, there will be a longjmp(), and the variables will
-# have to be cleared explicitely. They are normally maintained by the
-# code that use them.
-#
-# This routine must only be called from top level, not from inside
-# stack machine execution (as stack will be cleared).
- 
+comm_time_to_call_heart_beat = 0  # this is set by interrupt, #
+
+
 def clear_state():
+    """
+    There are global variables that must be zeroed before any execution.
+    In case of errors, there will be a longjmp(), and the variables will
+    have to be cleared explicitely. They are normally maintained by the
+    code that use them.
+
+    This routine must only be called from top level, not from inside
+    stack machine execution (as stack will be cleared).
+    """
     simulate.current_object = None
     simulate.command_giver = None
     simulate.current_interactive = None
     simulate.previous_ob = None
- 
+
+
 # void logon(ob)
 #     struct object *ob;
 # {
@@ -46,32 +47,26 @@ def clear_state():
 #     }
 #     current_object = save;
 # }
-# 
-# # 
-#  * Take a player command and parse it.
-#  * The command can also come from a NPC.
-#  * Beware that 'str' can be modified and extended !
-#  # 
-# int parse_command(str, ob)
-#     char *str;
-#     struct object *ob;
-# {
-#     struct object *save = command_giver;
-#     int res;
-# 
-#     command_giver = ob;
-#     res = player_parser(str);
-#     command_giver = save;
-#     return res;
-# }
- # int eval_cost;
 
-# 
-# This is the backend. We will stay here for ever (almost).
-#
+
+def parse_command(arg, ob):
+    """
+    Take a player command and parse it.
+    The command can also come from a NPC.
+    Beware that 'str' can be modified and extended !
+    """
+    save = simulate.command_giver
+
+    simulate.command_giver = ob
+    res = simulate.player_parser(arg)
+    simulate.command_giver = save
+    return res
 
 
 def backend():
+    """
+    This is the backend. We will stay here for ever (almost).
+    """
 
     buff = []
 
@@ -90,15 +85,15 @@ def backend():
         # once every loop. However, there seem to be holes where the
         # state is not consistent. If these holes are removed,
         # then the call of clear_state() can be moved to just before the
-        # while() - statment. *sigh* /Lars
+        # while() - statement. *sigh* /Lars
 
         clear_state()
-        remove_destructed_objects() #  marion - before ref checks! # 
+        remove_destructed_objects()  # marion - before ref checks! #
         if simulate.game_is_being_shut_down:
             simulate.shutdowngame()
 
-        if comm.get_message(buff): 
-
+        buff.clear()
+        if comm.get_message(buff):
             # Now we have a string from the player. This string can go to
             # one of several places. If it is prepended with a '!', then
             # it is an escape from the 'ed' editor, so we send it
@@ -114,11 +109,11 @@ def backend():
             simulate.current_interactive = simulate.command_giver
 
             if buff[0] == '!' and simulate.command_giver.parent:
-                parse_command(buff+1, simulate.command_giver);
+                parse_command(buff+1, simulate.command_giver)
             elif comm.call_function_interactive(simulate.command_giver.interactive,buff):
-                pass    #  Do nothing ! # 
+                pass    # Do nothing ! #
             else:
-                parse_command(buff, command_giver);
+                parse_command(buff, simulate.command_giver)
 
             # Print a prompt if player is still here.
             if simulate.command_giver.interactive:
@@ -129,22 +124,23 @@ def backend():
         simulate.command_giver = None
 
 
+def look_for_objects_to_swap():
+    """
+    Despite the name, this routine takes care of several things.
+    It will loop through all objects once every 10 minutes.
 
-# # 
-# # Despite the name, this routine takes care of several things.
-# # It will loop through all objects once every 10 minutes.
-# #
-# # If an object is found in a state of not having done reset, and the
-# # delay to next reset has passed, then reset() will be done.
-# #
-# # If the object has a existed more than the time limit given for swapping,
-# # then 'clean_up' will first be called in the object, after which it will
-# # be swapped out if it still exists.
-# #
-# # There are some problems if the object self-destructs in clean_up, so
-# # special care has to be taken of how the linked list is used.
-#  # 
-# static void look_for_objects_to_swap() {
+    If an object is found in a state of not having done reset, and the
+    delay to next reset has passed, then reset() will be done.
+
+    If the object has a existed more than the time limit given for swapping,
+    then 'clean_up' will first be called in the object, after which it will
+    be swapped out if it still exists.
+
+    There are some problems if the object self-destructs in clean_up, so
+    special care has to be taken of how the linked list is used.
+    """
+
+# {
 #     extern long time_to_swap; #  marion - for invocation parameter # 
 #     static int next_time;
 #     struct object *ob;
@@ -244,94 +240,63 @@ def backend():
 #        sizeof error_recovery_context);
 #     error_recovery_context_exists = save_rec_exists;
 # }
-# 
-# # 
-#  * Call all heart_beat() functions in all objects.  Also call the next reset,
-#  * and the call out.
-#  * We do heart beats by moving each object done to the end of the heart beat
-#  * list before we call its function, and always using the item at the head
-#  * of the list as our function to call.  We keep calling heart beats until
-#  * a timeout or we have done num_heart_objs calls.  It is done this way so
-#  * that objects can delete heart beating objects from the list from within
-#  * their heart beat without truncating the current round of heart beats.
-#  *
-#  * Set command_giver to current_object if it is a living object. If the object
-#  * is shadowed, check the shadowed object if living. There is no need to save
-#  * the value of the command_giver, as the caller resets it to 0 anyway.
-#  # 
-# static struct object * hb_list = 0; #  head # 
-# static struct object * hb_tail = 0; #  for sane wrap around # 
-# 
-# static int num_hb_objs = 0;  #  so we know when to stop! # 
-# static int num_hb_calls = 0; #  stats # 
-# static float perc_hb_probes = 100.0; #  decaying avge of how many complete # 
- 
+
+
 def call_heart_beat():
-    raise NotImplementedError
-#     {
-#     struct object *ob, *hide_current = current_object;
-#     int num_done = 0;
-#     
-#     time_to_call_heart_beat = 0; #  interrupt loop if we take too long # 
-#     comm_time_to_call_heart_beat = 0;
-# #ifndef MSDOS
-#     (void)signal(SIGALRM, catch_alarm);
-#     alarm(2);
-# #else
-#     start_timer(2);
-# #endif
-#     current_time = get_current_time();
-#     current_interactive = 0;
-# 
-#     if ((num_player > 0) and hb_list) {
-#         num_hb_calls++;
-#     while (hb_list and
-# #ifndef MSDOS
-#            !comm_time_to_call_heart_beat
-# #else
-#            !timer_expired()
-# #endif
-#            and (num_done < num_hb_objs)) {
-#         num_done++;
-#         cycle_hb_list();
-#         ob = hb_tail; #  now at end # 
-#         if (!(ob.flags & O_HEART_BEAT))
-#         fatal("Heart beat not set in object on heart beat list!");
-#         if (ob.flags & O_SWAPPED)
-#         fatal("Heart beat in swapped object.\n");
-#         #  move ob to end of list, do ob # 
-#         if (ob.prog.heart_beat == -1)
-#         continue;
-#         current_prog = ob.prog;
-#         current_object = ob;
-#         current_heart_beat = ob;
-#         command_giver = ob;
-#         while(command_giver.shadowing)
-#         command_giver = command_giver.shadowing;
-#         if (!(command_giver.flags & O_ENABLE_COMMANDS))
-#         command_giver = 0;
-#         if (ob.user)
-#         ob.user.heart_beats++;
-#         eval_cost = 0;
-#         call_function(ob.prog,
-#               &ob.prog.functions[ob.prog.heart_beat]);
-#     }
-#     if (num_hb_objs)
-#         perc_hb_probes = 100 * (float) num_done / num_hb_objs;
-#     else
-#         perc_hb_probes = 100.0;
-#     }
-#     current_object = hide_current;
-#     current_heart_beat = 0;
-#     look_for_objects_to_swap();
-#     call_out();    #  some things depend on this, even without players! # 
-#     flush_all_player_mess();
-#     wiz_decay();
-# #ifdef MUDWHO
-#     sendmudwhoinfo();
-# #endif
-# }
-# 
+    """
+    Call all heart_beat() functions in all objects.  Also call the next reset,
+    and the call out.
+    We do heart beats by moving each object done to the end of the heart beat
+    list before we call its function, and always using the item at the head
+    of the list as our function to call.  We keep calling heart beats until
+    a timeout or we have done num_heart_objs calls.  It is done this way so
+    that objects can delete heart beating objects from the list from within
+    their heart beat without truncating the current round of heart beats.
+
+    Set command_giver to current_object if it is a living object. If the object
+    is shadowed, check the shadowed object if living. There is no need to save
+    the value of the command_giver, as the caller resets it to 0 anyway.
+    """
+
+    hide_current = simulate.current_object
+
+    time_to_call_heart_beat = 0  # interrupt loop if we take too long #
+    comm_time_to_call_heart_beat = 0
+
+    alarm(2)  # set or push the alarm to 2 seconds in the future #
+
+    backend.current_time = time.time()
+    simulate.current_interactive = None
+
+    if comm.num_player > 0 and len(heart_beat_list) > 0:
+
+        for ob in heart_beat_list:
+            if comm_time_to_call_heart_beat:
+                break
+
+            if not ob.O_HEART_BEAT:
+                raise Exception("Heart beat not set " +
+                                "in object on heart beat list!")
+
+            simulate.current_object = ob
+            backend.current_heart_beat = ob
+            simulate.command_giver = ob
+            while simulate.command_giver.shadowing:
+                simulate.command_giver = simulate.command_giver.shadowing
+            if not simulate.command_giver.O_ENABLE_COMMANDS:
+                simulate.command_giver = None
+            if ob.user:
+                ob.user.heart_beats += 1
+            ob.heart_beat()
+
+    simulate.current_object = hide_current
+    backend.current_heart_beat = None
+    look_for_objects_to_swap()
+    call_out.call_out()  # some things depend on this, even without players!
+    comm.flush_all_player_mess()
+    wiz_list.wiz_decay()
+
+
 # # 
 #  * Take the first object off the heart beat list, place it at the end
 #  # 
@@ -433,40 +398,38 @@ def load_first_objects():
     print("Loading init file %s" % config.INIT_FILE)
     try:
         f = open(config.INIT_FILE, "r")
-        
+
         tms1 = time.time()
-        
+
         for buff in f:
-            
-            
+
             # comment line #
-            if buff[0] == '#':            
+            if buff[0] == '#':
                 continue;
-            
+
             # clean up extra whitespace #
             buff = buff.strip()
-            
+
             # empty line #
             if len(buff) == 0:
                 continue
-            
+
             print("Preloading: %s" % buff, end="")
-            sys.stdout.flush()            
+            sys.stdout.flush()
             simulate.find_object(buff)
 
             tms2 = time.time()
-            
+
             print(" %.2f" % ((tms2 - tms1) / 60.0))
             tms1 = tms2
-        
+
             sys.stdout.flush()
-        
-        
+
         f.close()
     except FileNotFoundError:
         comm.add_message("Anomaly in the fabric of world space.\n")
         print("Error loading file %s" % config.INIT_FILE)
- 
+
 # # 
 #  * New version used when not in -o mode. The epilog() in master.c is
 #  * supposed to return an array of files (castles in 2.4.5) to load. The array
@@ -517,27 +480,25 @@ def load_first_objects():
 #     free_vector(prefiles);
 #     error_recovery_context_exists = 0;
 # }
-# 
-# # 
-#  * catch alarm, set flag for comms code and heart_beat to catch.
-#  * comms code sets time_to_call_heart_beat for the backend when
-#  * it has completed the current round of player commands.
-#  # 
-# 
-# void catch_alarm() {
-#     comm_time_to_call_heart_beat = 1;
-# }
+ 
+ 
+def catch_alarm():
+    """
+    catch alarm, set flag for comms code and heart_beat to catch.
+    comms code sets time_to_call_heart_beat for the backend when
+    it has completed the current round of player commands.
+    """
+    comm_time_to_call_heart_beat = True
 
 
 def remove_destructed_objects():
     """
-    # All destructed objects are moved int a sperate linked list,
-    # and deallocated after program execution.
+    All destructed objects are moved int a sperate linked list,
+    and deallocated after program execution.
     """
-    for ob in obj_list_destruct:
+    for ob in simulate.obj_list_destruct:
         simulate.destruct2(ob)
-        obj_list_destruct.remove(ob)
-
+        simulate.obj_list_destruct.remove(ob)
 
 
 # # 
@@ -801,5 +762,22 @@ def remove_destructed_objects():
 #     return -2;
 #     return st.st_size;
 # }
-# 
 
+
+alarm_time = 0
+
+def sigalrm_run():
+    while(True):
+        
+        t = time.time() # get the current time #        
+        if alarm_time < t: # test if the alarm_time is older #
+            catch_alarm() # call catch_alarm #
+        time.sleep(0.01) # spin #
+        
+
+def alarm(t):
+    """
+    Set a new alarm time for t seconds in the future
+    """
+    
+    alarm_time = time.time() + t
