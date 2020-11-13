@@ -3772,39 +3772,45 @@ from bin import simulate, mud_object, comm
 
 
 def apply(fun, ob, *args):
-    
+
     # This object will now be used, and is thus a target for
     # reset later on (when time due).    
     ob.O_RESET_STATE = False
 
     if fun[0] == ':':
         raise Exception("Illegal function call")
-    
+
     # If there is a chain of objects shadowing, start with the first
     # of these.
     while ob.shadowed and ob.shadowed != simulate.current_object:
         ob = ob.shadowed
 
     try:
-        mud_object.previous_ob = simulate.current_object;
-        simulate.current_object = ob;
-        return ob.fun(args)        
-    except AttributeError:
-        pass
-    
+        mud_object.previous_ob = simulate.current_object
+        simulate.current_object = ob
+        if function_exists(fun, ob):
+            method = getattr(ob, fun)
+            method(args)
+        else:
+            print("Method not found for ", ob, fun)
+    except AttributeError as e:
+        print(e)
+
     if (ob.shadowing):
         # This is an object shadowing another. The function was not found,
-        # but can maybe be found in the object we are shadowing.     
+        # but can maybe be found in the object we are shadowing.
         ob = ob.shadowing
         return apply(fun, ob, args)
-    
+
     return None
 
- 
-# This function is similar to apply(), except that it will not
-# call the function, only return object name if the function exists,
-# or 0 otherwise.
-def function_exists(fun, ob):    
+
+def function_exists(fun, ob):
+    """
+    This function is similar to apply(), except that it will not
+    call the function, only return object name if the function exists,
+    or 0 otherwise.
+    """
     if hasattr(ob, fun) and callable(getattr(ob, fun)):
         return ob.name
     return None
