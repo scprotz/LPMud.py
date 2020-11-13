@@ -3,7 +3,9 @@ import socket
 import sys
 from telnetlib import IAC, WONT
 
-from bin import simulate, main, backend
+from bin import config, interpret, comm, mud_object
+from bin import simulate, main, backend, access_check, interactive
+
 
 TELOPT_ECHO = bytes([1])
 MAX_TEXT = 2048
@@ -243,7 +245,7 @@ def get_message(buff):
                 # First, try to get a new player... #
                 new_socket, address = s.accept()
                 if new_socket:
-                    new_player(new_socket)
+                    new_player(new_socket, address)
             else:
                 print("else")
                 for ip in all_players:
@@ -542,116 +544,65 @@ def remove_interactive(ob):
 #     return 0;    # Just to satisfy some compiler warnings #
 # }
 
-def new_player(new_socket):
-    raise NotImplementedError
-#     int new_socket;
-#     struct sockaddr_in *addr;
-#     int len;
-# {
-#     int i;
-#     char *p;
-#    
-# #ifndef MSDOS
-# #ifdef ACCESS_RESTRICTED
-#     void *class;
-# 
-#     if (!(class = allow_host_access (new_socket, new_socket)))
-#       return;
-# #else
-#     if(allow_host_access(new_socket))
-#     return;
-# #endif
-# #endif
-#     if (d_flag > 1)
-#     debug_message("New player at socket %d.\n", new_socket);
-#     for (i=0; i<MAX_PLAYERS; i++) {
-#     struct object *ob;
-#     struct svalue *ret;
-#     extern struct object *master_ob;
-#     
-#     if (all_players[i] != 0)
-#         continue;
-#     assert_master_ob_loaded();
-#     command_giver = master_ob;
-#     master_ob.interactive =
-#         (struct interactive *)xalloc(sizeof (struct interactive));
-#     master_ob.interactive.default_err_message = 0;
-#     master_ob.flags |= O_ONCE_INTERACTIVE;
-#     # This initialization is not pretty. #
-#     master_ob.interactive.ob = master_ob;
-#     master_ob.interactive.text[0] = '\0';
-#     master_ob.interactive.input_to = 0;
-#     master_ob.interactive.closing = 0;
-#     master_ob.interactive.snoop_on = 0;
-#     master_ob.interactive.snoop_by = 0;
-# #ifdef PORTALS
-#     master_ob.interactive.out_portal = 0;
-#     master_ob.interactive.portal_socket = 0;
-#     master_ob.interactive.from_portal = 0;
-# #endif # PORTALS #
-#     master_ob.interactive.text_end = 0;
-#     master_ob.interactive.text_start = 0;
-#     master_ob.interactive.do_close = 0;
-#     master_ob.interactive.noecho = 0;
-#     master_ob.interactive.trace_level = 0;
-#     master_ob.interactive.trace_prefix = 0;
-#     master_ob.interactive.last_time = current_time;
-#     master_ob.interactive.ed_buffer = 0;
-#     master_ob.interactive.message_length=0;
-# #ifdef MUDWHO
-#         master_ob.interactive.login_time = current_time;
-# #endif
-#     all_players[i] = master_ob.interactive;
-#     all_players[i].socket = new_socket;
-#     set_prompt("> ");
-# #if 1
-#     memcpy((char *)&all_players[i].addr, (char *)addr, len);
-# #else
-#     getpeername(new_socket, (struct sockaddr *)&all_players[i].addr,
-#             &len);
-# #endif
-# 
-# #ifdef ACCESS_RESTRICTED
-#         all_players[i].access_class = class;
-# #endif
-#     num_player++;
-#     /*
-#      * The player object has one extra reference.
-#      * It is asserted that the master_ob is loaded.
-#      */
-#     add_ref(master_ob, "new_player");
-#     ret = apply_master_ob("connect", 0);
-#     if (ret == 0 || ret.type != T_OBJECT) {
-#         remove_interactive(master_ob);
-#         return;
-#     }
-#     /*
-#      * There was an object returned from connect(). Use this as the
-#      * player object.
-#      */
-#     ob = ret.u.ob;
-#     ob.interactive = master_ob.interactive;
-#     ob.interactive.ob = ob;
-#     ob.flags |= O_ONCE_INTERACTIVE;
-#     master_ob.flags &= ~O_ONCE_INTERACTIVE;
-#     add_message(MESSAGE_FLUSH);
-#     master_ob.interactive = 0;
-#     free_object(master_ob, "reconnect");
-#     add_ref(ob, "new_player");
-#     command_giver = ob;
-#         if (f_ip_demon_wr != NULL) {
-# #printf("sent hname %s\n:", query_ip_number(ob));#
-#             fprintf(f_ip_demon_wr, "%s\n", query_ip_number(ob));
-#             fflush(f_ip_demon_wr);
-#         }
-#     logon(ob);
-#     flush_all_player_mess();
-#     return;
-#     }
-#     p = "Lpmud is full. Come back later.\r\n";
-#     write(new_socket, p, strlen(p));
-#     close(new_socket);
-# }
+def new_player(new_socket, address):
+
+    _class = access_check.allow_host_access(new_socket, address, new_socket)
+    if not _class:
+        return
+
+    if len(all_players) < config.MAX_PLAYERS + 1:
+
+        interpret.assert_master_ob_loaded()
+        simulate.command_giver = simulate.master_ob
+        simulate.master_ob.interactive = interactive.Interactive()
+        simulate.master_ob.interactive.default_err_message = None
+        simulate.master_ob.O_ONCE_INTERACTIVE - True
+        # This initialization is not pretty. #
+        simulate.master_ob.interactive.ob = simulate.master_ob
+        simulate.master_ob.interactive.text = []
+        simulate.master_ob.interactive.input_to = None
+        simulate.master_ob.interactive.closing = False
+        simulate.master_ob.interactive.snoop_on = None
+        simulate.master_ob.interactive.snoop_by = None
+        simulate.master_ob.interactive.do_close = False
+        simulate.master_ob.interactive.noecho = False
+        simulate.master_ob.interactive.last_time = backend.current_time
+
+        all_players.append(simulate.master_ob.interactive)
+        simulate.master_ob.interactive.socket = new_socket
+
+        set_prompt("> ")
+
+        simulate.master_ob.interactive.access_class = _class
+
+        # The player object has one extra reference.
+        # It is asserted that the master_ob is loaded.
+        #
+        ret = interpret.apply_master_ob("connect", 0)
+        if ret is None or not isinstance(mud_object.Mud_Object):
+            comm.remove_interactive(simulate.master_ob)
+            return
+
+        # There was an object returned from connect(). Use this as the
+        # player object.
+
+        ret.interactive = simulate.master_ob.interactive
+        ret.interactive.ob = ret
+        ret.O_ONCE_INTERACTIVE = True
+        simulate.master_ob.O_ONCE_INTERACTIVE = False
+        comm.add_message(MESSAGE_FLUSH)
+        simulate.master_ob.interactive = None
+        mud_object.free_object(simulate.master_ob, "reconnect");
+
+        simulate.command_giver = ret
+
+        backend.logon(ret)
+        comm.flush_all_player_mess()
+        return
+
+    new_socket.send(b'Lpmud is full. Come back later.\r\n')
+    new_socket.shutdown()
+    new_socket.close()
 
 
 def call_function_interactive(i, str):
@@ -742,12 +693,10 @@ def remove_all_players():
 #     (void)apply("quit", all_players[i].ob, 0);
 #     }
 # }
-# 
-# void set_prompt(str)
-#     char *str;
-# {
-#     command_giver.interactive.prompt = str;
-# }
+
+
+def set_prompt(pr):
+    simulate.command_giver.interactive.prompt = pr
 
 
 def print_prompt():

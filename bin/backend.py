@@ -2,13 +2,15 @@
 import sys
 import time
 
-from bin import config, comm, simulate, call_out, wiz_list
+from bin import config, comm, simulate, call_out, wiz_list, interpret, \
+    mud_object
 
 
 current_time = 0  # The 'current_time' is updated at every heart beat.
 current_heart_beat = None
 time_to_call_heart_beat = 0
 heart_beat_list = []
+_next_time = 0
 
 comm_time_to_call_heart_beat = 0  # this is set by interrupt, #
 
@@ -29,24 +31,19 @@ def clear_state():
     simulate.previous_ob = None
 
 
-# void logon(ob)
-#     struct object *ob;
-# {
-#     struct svalue *ret;
-#     struct object *save = current_object;
-# 
-#     # 
-#      * current_object must be set here, so that the static "logon" in
-#      * player.c can be called.
-#      # 
-#     current_object = ob;
-#     ret = apply("logon", ob, 0);
-#     if (ret == 0) {
-#     add_message("prog %s:\n", ob.name);
-#     fatal("Could not find logon on the player %s\n", ob.name);
-#     }
-#     current_object = save;
-# }
+def logon(ob):
+    save = simulate.current_object
+
+    # current_object must be set here, so that the static "logon" in
+    # player.c can be called.
+
+    simulate.current_object = ob
+    ret = interpret.apply("logon", ob, 0)
+    if ret is None:
+        comm.add_message("prog %s:\n" % ob.name)
+        raise Exception("Could not find logon on the player %s\n" % ob.name)
+
+    simulate.current_object = save
 
 
 def parse_command(arg, ob):
@@ -110,7 +107,8 @@ def backend():
 
             if buff[0] == '!' and simulate.command_giver.parent:
                 parse_command(buff+1, simulate.command_giver)
-            elif comm.call_function_interactive(simulate.command_giver.interactive,buff):
+            elif comm.call_function_interactive(
+                    simulate.command_giver.interactive, buff):
                 pass    # Do nothing ! #
             else:
                 parse_command(buff, simulate.command_giver)
@@ -125,6 +123,7 @@ def backend():
 
 
 def look_for_objects_to_swap():
+    global _next_time
     """
     Despite the name, this routine takes care of several things.
     It will loop through all objects once every 10 minutes.
@@ -140,106 +139,24 @@ def look_for_objects_to_swap():
     special care has to be taken of how the linked list is used.
     """
 
-# {
-#     extern long time_to_swap; #  marion - for invocation parameter # 
-#     static int next_time;
-#     struct object *ob;
-#     struct object *next_ob;
-#     jmp_buf save_error_recovery_context;
-#     int save_rec_exists;
-# 
-#     if (current_time < next_time)
-#     return;                #  Not time to look yet # 
-#     next_time = current_time + 15 * 60;    #  Next time is in 15 minutes # 
-#     memcpy((char *) save_error_recovery_context,
-#        (char *) error_recovery_context, sizeof error_recovery_context);
-#     save_rec_exists = error_recovery_context_exists;
-#     # 
-#      * Objects object can be destructed, which means that
-#      * next object to investigate is saved in next_ob. If very unlucky,
-#      * that object can be destructed too. In that case, the loop is simply
-#      * restarted.
-#      # 
-#     for (ob = obj_list; ob; ob = next_ob) {
-#     int ready_for_swap;
-#     if (ob.flags & O_DESTRUCTED) {
-#         ob = obj_list; #  restart # 
-#     }
-#     next_ob = ob.next_all;
-#         if (setjmp(error_recovery_context)) {        #  amylaar # 
-#             extern void clear_state();
-#             clear_state();
-#             debug_message("Error in look_for_objects_to_swap.\n");
-#         continue;
-#         }
-#     # 
-#      * Check reference time before reset() is called.
-#      # 
-#     if (current_time < ob.time_of_ref + time_to_swap)
-#         ready_for_swap = 0;
-#     else
-#         ready_for_swap = 1;
-#     # 
-#      * Should this object have reset(1) called ?
-#      # 
-#     if (ob.next_reset < current_time and !(ob.flags & O_RESET_STATE)) {
-#         if (d_flag)
-#         fprintf(stderr, "RESET %s\n", ob.name);
-#         reset_object(ob, 1);
-#     }
-# #if TIME_TO_CLEAN_UP > 0
-#     # 
-#      * Has enough time passed, to give the object a chance
-#      * to self-destruct ? Save the O_RESET_STATE, which will be cleared.
-#      *
-#      * Only call clean_up in objects that has defined such a function.
-#      *
-#      * Only if the clean_up returns a non-zero value, will it be called
-#      * again.
-#      # 
-#     if (current_time - ob.time_of_ref > TIME_TO_CLEAN_UP and
-#         (ob.flags & O_WILL_CLEAN_UP))
-#     {
-#         int save_reset_state = ob.flags & O_RESET_STATE;
-#         struct svalue *svp;
-# 
-#         if (d_flag)
-#         fprintf(stderr, "clean up %s\n", ob.name);
-#         # 
-#          * Supply a flag to the object that says if this program
-#          * is inherited by other objects. Cloned objects might as well
-#          * believe they are not inherited. Swapped objects will not
-#          * have a ref count > 1 (and will have an invalid ob.prog
-#          * pointer).
-#          # 
-#         push_number(ob.flags & (O_CLONE|O_SWAPPED) ? 0 : ob.prog.ref);
-#         svp = apply("clean_up", ob, 1);
-#         if (ob.flags & O_DESTRUCTED)
-#         continue;
-#         if (!svp or (svp.type == T_NUMBER and svp.u.number == 0))
-#         ob.flags &= ~O_WILL_CLEAN_UP;
-#         ob.flags |= save_reset_state;
-#     }
-# #endif #  TIME_TO_CLEAN_UP > 0 # 
-# #if TIME_TO_SWAP > 0
-#     # 
-#      * At last, there is a possibility that the object can be swapped
-#      * out.
-#      # 
-#     if (ob.flags & O_SWAPPED or !ready_for_swap)
-#         continue;
-#     if (ob.flags & O_HEART_BEAT)
-#         continue;
-#     if (d_flag)
-#         fprintf(stderr, "swap %s\n", ob.name);
-#     swap(ob);    #  See if it is possible to swap out to disk # 
-# #endif
-#     }
-#     memcpy((char *) error_recovery_context,
-#        (char *) save_error_recovery_context,
-#        sizeof error_recovery_context);
-#     error_recovery_context_exists = save_rec_exists;
-# }
+    if backend.current_time < _next_time:
+        return  # Not time to look yet #
+    _next_time = current_time + 15 * 60  # Next time is in 15 minutes #
+
+    # Objects object can be destructed, which means that
+    # next object to investigate is saved in next_ob. If very unlucky,
+    # that object can be destructed too. In that case, the loop is simply
+    # restarted.
+
+    for ob in simulate.obj_list:
+
+        if ob.O_DESTRUCTED:
+            continue
+
+        # Should this object have reset(1) called ?
+
+        if ob.next_reset < backend.current_time and not ob.O_RESET_STATE:
+            mud_object.reset_object(ob, 1)
 
 
 def call_heart_beat():

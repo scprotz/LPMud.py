@@ -31,15 +31,13 @@ MUD_LIB = "lib/"
 #  
 #define GAME_VERSION "03.01."
 
-#
 #  If an object is left alone for a certain time, then the
 #  function clean_up will be called. This function can do anything,
 #  like destructing the object. If the function isn't defined by the
 #  object, then nothing will happen.
 #
 #  This time should be substantially longer than the swapping time.
-#  
-#define TIME_TO_CLEAN_UP    7200
+TIME_TO_CLEAN_UP = 7200
 
 #
 #  How long time until an unused object is swapped out.
@@ -194,10 +192,8 @@ INIT_FILE = "room/init_file"
 #  
 #define LOG_SHOUT
 
-#
 #  Maximum number of players in the game.
-#  
-#define MAX_PLAYERS    40
+MAX_PLAYERS = 40
 
 #
 #  When uploading files, we want fast response; however, normal players

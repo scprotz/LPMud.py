@@ -895,14 +895,14 @@ class Living(Mud_Object):
             
         
         self.flags = self.set_bit(self.flags, n)
-    
-     
+
+
     def test_flag(self,n):
         if self.flags == 0:
             self.flags = ""
         return self.test_bit(self.flags, n)
-    
-     
+
+
     def clear_flag(self, n):
         if self.flags == 0:
             self.flags = ""

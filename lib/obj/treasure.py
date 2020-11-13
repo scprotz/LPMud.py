@@ -49,9 +49,9 @@ class Treasure(Mud_Object):
     def set_id(self, arg):
         self.local_weight = 1
         self.name = arg    
-    
+
     def set_alias(self, arg):
-        self.alias_name = arg    
+        self.alias_name = arg
     
     def set_short(self, arg):
         self.short_desc = arg

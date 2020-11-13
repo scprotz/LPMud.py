@@ -4277,58 +4277,51 @@ def function_exists(fun, ob):
 #     sprintf(buf, "*** %d %*s %s %s %s%s", tracedepth, tracedepth, "", msg, objname, fname, post);
 #     add_message(buf);
 # }
-# 
-# struct svalue *apply_master_ob(fun, num_arg)
-#     char *fun;
-#     int num_arg;
-# {
-#     extern struct object *master_ob;
-# 
-#     assert_master_ob_loaded();
-#     /*
-#      * Maybe apply() should be called instead ?
-#      */
-#     return sapply(fun, master_ob, num_arg);
-# }
+
+
+def apply_master_ob(fun, *args):
+    assert_master_ob_loaded()
+
+    # Maybe apply() should be called instead #
+    apply(fun, simulate.master_ob, args)
+
 
 inside = False
 
+
 def assert_master_ob_loaded():
- 
-    if simulate.master_ob == None or simulate.master_ob.O_DESTRUCTED: 
-    
-        
+    if simulate.master_ob is None or simulate.master_ob.O_DESTRUCTED:
+
         # The master object has been destructed. Free our reference,
         # and load a new one.
-        
+
         # This test is needed because the master object is called from
         # yyparse() at an error to find the wizard name. However, and error
         # when loading the master object will cause a recursive call to this
         # point.
-        
+
         # The best solution would be if the yyparse() did not have to call
         # the master object to find the name of the wizard.
-        
+
         if (inside):
-        
+
             print("Failed to load master object.", file=sys.stderr);
             comm.add_message("Failed to load master file !\n");
             exit(1);
-        
+
         print("assert_master_ob_loaded: Reloading master.c", file=sys.stderr);
         if simulate.master_ob:
             mud_object.free_object(simulate.master_ob, "assert_master_ob_loaded");
-        
-        # Clear the pointer, in case the load failed.        
+
+        # Clear the pointer, in case the load failed.
         simulate.master_ob = None
         inside = True
         simulate.master_ob = simulate.load_object("obj/master",0)
         inside = False
-        
+
         print("Reloading done.", file=sys.stderr);
-        
-    
-# 
+
+ 
 # /*
 #  * When an object is destructed, all references to it must be removed
 #  * from the stack.
